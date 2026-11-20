@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from app.models.property import Property
 from app.services.discovery import DiscoveryRun, EvaluatedProperty
 from app.services.filtering import FilterStatus
+from app.services.scoring import Analysis
 
 
 class PropertyOut(BaseModel):
@@ -13,8 +14,12 @@ class PropertyOut(BaseModel):
     status: FilterStatus
     is_new: bool
     previous_price: int | None
+    rank: int | None
+    score: float | None
+    confidence: float | None
     rejections: list[str]
     unverified: list[str]
+    analysis: Analysis | None
     property: Property
 
     @classmethod
@@ -26,6 +31,10 @@ class PropertyOut(BaseModel):
             status=ev.filter.status,
             is_new=ev.is_new,
             previous_price=ev.previous_price,
+            rank=ev.rank,
+            score=ev.analysis.score if ev.analysis else None,
+            confidence=ev.analysis.confidence if ev.analysis else None,
+            analysis=ev.analysis,
             rejections=ev.filter.rejections,
             unverified=ev.filter.unverified,
             property=p,

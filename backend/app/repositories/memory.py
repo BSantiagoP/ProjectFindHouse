@@ -20,6 +20,7 @@ class MemoryRepository:
         self.by_address: dict[tuple, str] = {}
         self.snapshots: dict[str, list[PriceSnapshot]] = {}
         self.preferences = SearchPreferences()
+        self.api_usage: dict[tuple[str, str], int] = {}
 
     def known_properties(self, keys: list[ListingKey]) -> dict[ListingKey, Property]:
         return {k: self.properties[self.listings[k]] for k in keys if k in self.listings}
@@ -51,6 +52,14 @@ class MemoryRepository:
 
     def price_history(self, property_id: str) -> list[PriceSnapshot]:
         return list(self.snapshots.get(property_id, []))
+
+    def reserve_api_request(self, provider: str, period: str, limit: int) -> bool:
+        with self._lock:
+            used = self.api_usage.get((provider, period), 0)
+            if used >= limit:
+                return False
+            self.api_usage[(provider, period)] = used + 1
+            return True
 
     def get_preferences(self) -> SearchPreferences:
         return self.preferences

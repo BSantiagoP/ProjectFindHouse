@@ -5,6 +5,7 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
+from typing import Any
 
 from app.models.preferences import SearchPreferences
 from app.models.property import Property, PropertyType
@@ -35,6 +36,8 @@ class EvaluatedProperty:
     is_new: bool = True  # never seen in a previous run
     previous_price: int | None = None  # set only when the price changed since last seen
     property_id: str | None = None  # database id, once persisted
+    analysis: Any = None  # scoring.Analysis, set by the analysis graph
+    rank: int | None = None  # 1..N among recommended properties
 
     @property
     def price_changed(self) -> bool:

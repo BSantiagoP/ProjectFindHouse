@@ -74,7 +74,7 @@ def test_budget_exhaustion_degrades_gracefully():
 def test_api_requires_token_and_returns_eligible():
     repo = MemoryRepository()
     app.dependency_overrides[get_repository] = lambda: repo
-    app.dependency_overrides[get_settings] = lambda: Settings(api_token="secret", provider="fixture", max_requests_per_run=20)
+    app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, api_token="secret", provider="fixture", max_requests_per_run=20, analysis_enabled=False)
     try:
         client = TestClient(app)
         assert client.post("/api/searches").status_code == 401
@@ -106,7 +106,7 @@ def test_api_requires_token_and_returns_eligible():
 
 
 def test_api_fails_closed_without_configured_token():
-    app.dependency_overrides[get_settings] = lambda: Settings(api_token="")
+    app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, api_token="")
     app.dependency_overrides[get_repository] = lambda: MemoryRepository()
     try:
         assert TestClient(app).get("/api/properties").status_code == 503

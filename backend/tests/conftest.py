@@ -8,6 +8,17 @@ from app.models.property import Address, Feature, FeatureState, Property, Proper
 TODAY = date(2026, 11, 20)
 
 
+@pytest.fixture(autouse=True)
+def _no_real_network(monkeypatch):
+    """Tests must never call real APIs (paid keys live in .env). MockTransport is unaffected."""
+    import httpx
+
+    def blocked(self, request):
+        raise RuntimeError(f"Real network call blocked in tests: {request.url.host}")
+
+    monkeypatch.setattr(httpx.HTTPTransport, "handle_request", blocked)
+
+
 @pytest.fixture
 def prefs() -> SearchPreferences:
     return SearchPreferences()

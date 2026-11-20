@@ -14,6 +14,7 @@ from app.repositories.base import PriceSnapshot, RepositoryError
 from app.services.deduplication import address_key
 from app.services.discovery import DiscoveryRun, EvaluatedProperty, ListingKey
 from app.services.filtering import FilterResult, FilterStatus
+from app.services.scoring import Analysis
 
 log = logging.getLogger(__name__)
 
@@ -128,6 +129,8 @@ class SupabaseRepository:
                 is_new=r["is_new"],
                 previous_price=r.get("previous_price"),
                 property_id=r["property_id"],
+                analysis=Analysis.model_validate(r["analysis"]) if r.get("analysis") else None,
+                rank=r.get("rank"),
             ))
         return run
 
@@ -136,6 +139,13 @@ class SupabaseRepository:
             "property_id": f"eq.{property_id}", "order": "observed_at.asc", "select": "price,status,observed_at",
         })
         return [PriceSnapshot.model_validate(r) for r in rows]
+
+    def reserve_api_request(self, provider: str, period: str, limit: int) -> bool:
+        resp = self._client.post("/rpc/reserve_api_request", headers=self._headers,
+                                 content=json.dumps({"p_provider": provider, "p_period": period, "p_limit": limit}))
+        if resp.status_code >= 400:
+            raise RepositoryError(f"reserve_api_request: HTTP {resp.status_code} {resp.text[:200]}")
+        return resp.json() is True
 
     def get_preferences(self) -> SearchPreferences:
         rows = self._req("GET", "search_preferences", params={"id": "eq.1", "select": "data"})
@@ -209,6 +219,8 @@ class SupabaseRepository:
                 "search_run_id": run.id, "property_id": pid, "filter_status": ev.filter.status.value,
                 "rejections": ev.filter.rejections, "unverified": ev.filter.unverified,
                 "is_new": ev.is_new, "previous_price": ev.previous_price,
+                "analysis": ev.analysis.model_dump(mode="json") if ev.analysis else None,
+                "rank": ev.rank,
             })
 
         self._upsert("properties", prop_rows, "id")

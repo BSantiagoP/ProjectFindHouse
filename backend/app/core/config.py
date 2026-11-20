@@ -9,7 +9,11 @@ _ROOT = Path(__file__).resolve().parents[3]
 
 
 class Settings(BaseSettings):
-    openai_api_key: str = ""  # used from Milestone 3 (description/photo analysis)
+    openai_api_key: str = ""
+    openai_model: str = "gpt-5.4-mini"
+    rentcast_api_key: str = ""
+    rentcast_monthly_cap: int = 45  # stays inside RentCast's 50 free requests/month
+    analysis_enabled: bool = True
 
     # Repo-root .env first, backend/.env overrides it.
     model_config = SettingsConfigDict(env_file=(_ROOT / ".env", _ROOT / "backend" / ".env"), extra="ignore")

@@ -10,7 +10,12 @@ from app.models.preferences import SearchPreferences
 from app.providers.base import PropertyProvider, ProviderAuthError
 from app.repositories.base import PriceSnapshot, Repository, RepositoryError
 from app.repositories.factory import get_repository
+from app.agents.graph import AnalysisDeps, run_analysis
+from app.providers.rentcast import RentCastClient
+from app.services.commute import OverpassStopFinder
+from app.services.description_analysis import OpenAIStructuredLLM
 from app.services.discovery import run_discovery
+from app.services.rates import current_rate
 from app.services.filtering import FilterStatus
 
 log = logging.getLogger(__name__)
@@ -38,6 +43,19 @@ def get_provider(settings: Annotated[Settings, Depends(get_settings)]) -> Proper
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
 
 
+def build_analysis_deps(settings: Settings, repo: Repository, prefs: SearchPreferences) -> AnalysisDeps:
+    llm = OpenAIStructuredLLM(settings.openai_api_key, settings.openai_model) if settings.openai_api_key else None
+    rentcast = (
+        RentCastClient(settings.rentcast_api_key, reserve=repo.reserve_api_request,
+                       monthly_cap=settings.rentcast_monthly_cap)
+        if settings.rentcast_api_key else None
+    )
+    return AnalysisDeps(
+        llm=llm, llm_model=settings.openai_model, rentcast=rentcast,
+        stops=OverpassStopFinder(), rate=current_rate(prefs.rate_override),
+    )
+
+
 def _storage_error(exc: RepositoryError) -> HTTPException:
     log.error("Storage error: %s", exc)
     return HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, f"Storage unavailable: {exc}")
@@ -60,6 +78,8 @@ def create_search(
         fetch_details=settings.fetch_details,
         known_lookup=repo.known_properties,
     )
+    if settings.analysis_enabled:
+        run = run_analysis(run, prefs, build_analysis_deps(settings, repo, prefs))
     try:
         repo.save_run(run)
     except RepositoryError as exc:
@@ -119,6 +139,19 @@ def get_price_history(property_id: str, repo: RepoDep) -> list[PriceSnapshot]:
         return repo.price_history(property_id)
     except RepositoryError as exc:
         raise _storage_error(exc) from exc
+
+
+@router.get("/reports/latest", response_model=list[PropertyOut])
+def latest_report(repo: RepoDep) -> list[PropertyOut]:
+    """Top-ranked eligible properties from the latest run (at most max_recommendations)."""
+    try:
+        run = repo.latest_run()
+    except RepositoryError as exc:
+        raise _storage_error(exc) from exc
+    if run is None:
+        return []
+    ranked = sorted((ev for ev in run.results if ev.rank), key=lambda ev: ev.rank)
+    return [PropertyOut.from_evaluated(ev) for ev in ranked]
 
 
 @router.get("/preferences", response_model=SearchPreferences)
