@@ -64,7 +64,7 @@ def test_quote_check_tolerates_case_and_punctuation_only():
 def test_supported_claims_fill_unknown_features_and_units():
     p = apply_analysis(mf(), llm_result(), model="m")
     assert p.features.basement_bathroom.state is FeatureState.PRESENT
-    assert p.features.basement_bathroom.source is FeatureSource.DESCRIPTION
+    assert p.features.basement_bathroom.source is FeatureSource.LLM
     assert p.units == 2
     assert [u.label for u in p.llm_analysis.units] == ["first floor", "second floor"]
     assert p.llm_analysis.red_flags == ["Sold as-is"]
@@ -260,3 +260,119 @@ def test_graph_without_llm_reports_and_continues():
     run = run_analysis(run, prefs, AnalysisDeps(llm=None, llm_model="m", rentcast=None, stops=None, rate=RATE, today=TODAY))
     assert run.status == "partial"
     assert run.results[0].analysis is not None  # still scored, with unknowns
+
+
+def test_rentcast_auth_failure_stops_further_requests():
+    calls = []
+
+    def handler(req):
+        calls.append(1)
+        return httpx.Response(401, json={"error": "auth/api-key-invalid"})
+
+    client, _ = rentcast(handler)
+    p = apply_analysis(mf(), llm_result(), model="m")
+    first = client.estimate(p, OwnerUnit.LARGEST)
+    second = client.estimate(p, OwnerUnit.LARGEST)
+    assert first.status == second.status == "not_estimated"
+    assert "API key rejected" in first.reason
+    assert len(calls) == 1  # second property never hits the API
+
+
+def test_overpass_falls_back_to_mirror():
+    from app.services.commute import OverpassStopFinder
+
+    hosts = []
+
+    def handler(req):
+        hosts.append(req.url.host)
+        if len(hosts) == 1:
+            return httpx.Response(502)
+        return httpx.Response(200, json={"elements": [
+            {"lat": 40.801, "lon": -74.1, "tags": {"name": "Far"}},
+            {"lat": 40.8001, "lon": -74.1, "tags": {"name": "Near"}},
+        ]})
+
+    finder = OverpassStopFinder(client=httpx.Client(transport=httpx.MockTransport(handler)), sleep=lambda s: None)
+    name, meters = finder.nearest(40.8, -74.1, "bus")
+    assert name == "Near" and meters < 20
+    assert hosts[0] != hosts[1]
+
+
+def test_failed_stop_lookup_is_reported():
+    class Broken:
+        def nearest(self, *a):
+            raise RuntimeError("all servers down")
+
+    c = estimate_commute(mf(), SearchPreferences(), Broken())
+    assert c.total_minutes is None and c.nearest_stop.startswith("lookup failed")
+
+
+# ---- live-run regressions (2026-11-20) -------------------------------------------------
+
+def test_real_quote_about_wrong_thing_is_rejected():
+    text = "With 2 bedrooms, the first-floor unit offers even more room to spread out, with full access to the yard."
+    p = mf(description=text)
+    r = llm_result(units=[], garage=U(), laundry=U(), finished_basement=U(), outdoor_space=U(),
+                   basement_bathroom=U("present", "the first-floor unit offers even more room to spread out"), red_flags=[])
+    out = apply_analysis(p, r, model="m")
+    assert out.features.basement_bathroom.state is FeatureState.UNKNOWN
+    assert "not about basement_bathroom" in out.llm_analysis.rejected_claims[0]
+
+
+def test_absent_from_silence_is_rejected_and_single_family_not_wrongly_rejected():
+    text = "The finished basement offers a large rec room, laundry room/work room and storage."
+    sf = make_property(property_type=PropertyType.SINGLE_FAMILY, units=1, description=text,
+                       features=PropertyFeatures(garage=present(), laundry=present(), finished_basement=present()))
+    r = llm_result(units=[], garage=U(), laundry=U(), finished_basement=U(), outdoor_space=U(), red_flags=[],
+                   basement_bathroom=U("absent", "The finished basement offers a large rec room"))
+    out = apply_analysis(sf, r, model="m")
+    assert out.features.basement_bathroom.state is FeatureState.UNKNOWN
+    assert apply_hard_filters(out, SearchPreferences(), TODAY).status is FilterStatus.NEEDS_VERIFICATION
+
+
+def test_explicit_negation_still_counts_as_absent():
+    text = "Large basement, no bathroom in the basement."
+    r = llm_result(units=[], garage=U(), laundry=U(), finished_basement=U(), outdoor_space=U(), red_flags=[],
+                   basement_bathroom=U("absent", "no bathroom in the basement"))
+    out = apply_analysis(mf(description=text), r, model="m")
+    assert out.features.basement_bathroom.state is FeatureState.ABSENT
+
+
+def test_basement_suite_is_not_counted_as_rental_unit():
+    text = ("First floor offers 3 bedrooms and 1 bath. Second floor offers 3 bedrooms and 1 bath. "
+            "Ground level guest suite with 1 bedroom and 1 bath.")
+    p = mf(description=text, units=2, units_evidence="MLS structure type: 2 Family")
+    r = llm_result(red_flags=[], garage=U(), laundry=U(), finished_basement=U(), basement_bathroom=U(), outdoor_space=U(),
+                   units=[UnitLayout(label="ground level guest suite", bedrooms=1, bathrooms=1, quote="Ground level guest suite with 1 bedroom and 1 bath"),
+                          UnitLayout(label="first floor", bedrooms=3, bathrooms=1, quote="First floor offers 3 bedrooms and 1 bath"),
+                          UnitLayout(label="second floor", bedrooms=3, bathrooms=1, quote="Second floor offers 3 bedrooms and 1 bath")])
+    out = apply_analysis(p, r, model="m")
+    assert [u.label for u in out.llm_analysis.units] == ["first floor", "second floor"]
+    owner, rentals = rental_units(out, OwnerUnit.LARGEST)
+    assert len(rentals) == 1
+
+
+def test_unit_without_bedrooms_is_not_priced():
+    p = mf().model_copy(update={"units": 2})
+    r = llm_result(units=[UnitLayout(label="first unit", quote="Spacious two-family home"),
+                          UnitLayout(label="second unit", quote="Spacious two-family home")])
+    assert rental_units(apply_analysis(p, r, model="m"), OwnerUnit.LARGEST) is None
+
+
+def test_outdated_analysis_is_redone_from_scratch():
+    from app.models.analysis import LLMAnalysis
+    from app.models.property import Feature, FeatureSource
+    from app.services.description_analysis import analyze_description
+
+    stale = mf().model_copy(update={
+        "features": PropertyFeatures(
+            garage=Feature(state=FeatureState.PRESENT, source=FeatureSource.PROVIDER, evidence="MLS"),
+            basement_bathroom=Feature(state=FeatureState.ABSENT, source=FeatureSource.DESCRIPTION, evidence="wrong"),
+        ),
+        "llm_analysis": LLMAnalysis(model="m", prompt_version="desc-v1"),
+    })
+    llm = FakeLLM()
+    out = analyze_description(stale, llm, model="m")
+    assert llm.calls == 1
+    assert out.features.garage.evidence == "MLS"  # provider fact kept
+    assert out.features.basement_bathroom.state is FeatureState.PRESENT  # wrong v1 value replaced

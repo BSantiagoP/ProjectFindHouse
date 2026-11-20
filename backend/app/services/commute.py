@@ -28,10 +28,32 @@ class StopFinder(Protocol):
 
 
 class OverpassStopFinder:
-    URL = "https://overpass-api.de/api/interpreter"
+    # Public Overpass servers are often busy (live run 2026-11-20: 502s and timeouts),
+    # so try mirrors in turn with a short pause between attempts.
+    URLS = (
+        "https://overpass-api.de/api/interpreter",
+        "https://overpass.kumi.systems/api/interpreter",
+        "https://overpass.private.coffee/api/interpreter",
+    )
 
-    def __init__(self, client: httpx.Client | None = None) -> None:
+    def __init__(self, client: httpx.Client | None = None, sleep=None) -> None:
+        import time
+
         self._client = client or httpx.Client(timeout=40, headers={"User-Agent": "HomeScout/0.1 (personal home search)"})
+        self._sleep = sleep or time.sleep
+
+    def _post(self, query: str) -> dict:
+        last: Exception | None = None
+        for attempt, url in enumerate(self.URLS):
+            try:
+                resp = self._client.post(url, data={"data": query})
+                resp.raise_for_status()
+                return resp.json()
+            except (httpx.HTTPError, ValueError) as exc:
+                last = exc
+                log.info("Overpass %s failed (%s), trying next", url, exc)
+                self._sleep(1 + attempt)
+        raise RuntimeError(f"All Overpass servers failed: {last}")
 
     def nearest(self, lat: float, lon: float, access: str) -> tuple[str, int] | None:
         around = f"(around:{SEARCH_RADIUS_M},{lat},{lon})"
@@ -40,10 +62,8 @@ class OverpassStopFinder:
         else:
             body = f"node{around}[highway=bus_stop];node{around}[public_transport=platform][bus=yes];"
         query = f"[out:json][timeout:25];({body});out body;"
-        resp = self._client.post(self.URL, data={"data": query})
-        resp.raise_for_status()
         best: tuple[str, int] | None = None
-        for el in resp.json().get("elements", []):
+        for el in self._post(query).get("elements", []):
             d = haversine_m(lat, lon, el["lat"], el["lon"])
             name = (el.get("tags") or {}).get("name") or "unnamed stop"
             if best is None or d < best[1]:
@@ -71,7 +91,7 @@ def estimate_commute(prop: Property, prefs: SearchPreferences, finder: StopFinde
         found = finder.nearest(prop.latitude, prop.longitude, town.access)
     except Exception as exc:
         log.warning("Stop lookup failed for %s: %s", prop.address.raw, exc)
-        return est
+        return est.model_copy(update={"nearest_stop": f"lookup failed: {exc}"[:200]})
     if found is None:
         return est.model_copy(update={"nearest_stop": f"none within {SEARCH_RADIUS_M} m"})
     name, meters = found

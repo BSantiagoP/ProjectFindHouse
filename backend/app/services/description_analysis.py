@@ -10,11 +10,11 @@ import re
 from typing import Protocol
 
 from app.models.analysis import Condition, DescriptionAnalysis, LLMAnalysis, QuotedFinding, UnitLayout
-from app.models.property import Feature, FeatureSource, FeatureState, Property
+from app.models.property import Feature, FeatureSource, FeatureState, Property, PropertyFeatures
 
 log = logging.getLogger(__name__)
 
-PROMPT_VERSION = "desc-v1"
+PROMPT_VERSION = "desc-v2"  # v2: relevance + explicit-negation validation, unit cleanup
 
 INSTRUCTIONS = """You extract facts from a real-estate listing for a home buyer.
 Rules:
@@ -22,8 +22,12 @@ Rules:
 - For every finding that is not "unknown", copy an exact, verbatim quote from the listing text.
 - If the text does not clearly say something, answer "unknown". Do not guess.
 - "absent" requires the text to explicitly say the feature is missing (e.g. "no garage", "street parking only").
+  Never mark something absent just because it is not mentioned.
+- Each quote must itself mention the feature (e.g. a basement_bathroom quote must mention both the basement and a bath).
 - finished_basement is "present" only for a fully finished basement; "partially finished" is "unknown".
-- units: list each dwelling unit the text describes with its bedrooms/bathrooms. Do not split totals yourself.
+- units: list each separate dwelling unit (apartment/floor) the text describes with its bedrooms/bathrooms.
+  A finished basement, guest suite or in-law area is NOT a separate unit unless the text calls it a legal unit.
+  Do not split totals yourself.
 - Disclosures like virtual staging or tenant occupancy are not red flags unless they limit the sale."""
 
 FEATURES = ("garage", "driveway", "laundry", "finished_basement", "basement_bathroom", "outdoor_space")
@@ -72,6 +76,43 @@ def quote_supported(quote: str | None, source: str) -> bool:
     return _norm(quote) in _norm(source)
 
 
+# A quote must be ABOUT the feature, not just exist in the text. Live run 2026-11-20:
+# "basement bathroom: present" was quoted with a sentence about the first-floor unit.
+_RELEVANT: dict[str, list[re.Pattern[str]]] = {
+    "garage": [re.compile(r"garage")],
+    "driveway": [re.compile(r"driveway|off[- ]?street|private parking|parking pad|parking for")],
+    "laundry": [re.compile(r"laundry|washer|dryer|w/d")],
+    "finished_basement": [re.compile(r"basement|lower level"), re.compile(r"finish")],
+    "basement_bathroom": [re.compile(r"basement|lower level"), re.compile(r"bath|powder|toilet|half bath")],
+    "outdoor_space": [re.compile(r"yard|deck|patio|terrace|garden|porch|outdoor|balcony")],
+}
+# "absent" needs an explicit negation in the quote. Live run 2026-11-20: a single-family was
+# rejected because a basement description simply did not mention a bathroom.
+_NEGATION = re.compile(r"\b(no|not|without|lacks?|none|only)\b|unfinished|street parking")
+_NON_UNIT = re.compile(r"basement|lower level|ground level|guest suite|in-law|mother|suite|attic", re.I)
+
+
+def finding_valid(name: str, finding: QuotedFinding, source: str) -> tuple[bool, str]:
+    if not quote_supported(finding.quote, source):
+        return False, f"{name}={finding.state} (quote not found: {finding.quote!r})"
+    q = _norm(finding.quote or "")
+    if not all(p.search(q) for p in _RELEVANT.get(name, [])):
+        return False, f"{name}={finding.state} (quote is not about {name}: {finding.quote!r})"
+    if finding.state == "absent" and not _NEGATION.search(q):
+        return False, f"{name}=absent (no explicit negation in quote: {finding.quote!r})"
+    return True, ""
+
+
+def _clean_units(units: list[UnitLayout], mls_units: int | None) -> tuple[list[UnitLayout], list[str]]:
+    """Basement/guest 'units' are not proof of a legal rental unit: drop them when they push
+    the count above the MLS unit count."""
+    if mls_units is None or len(units) <= mls_units:
+        return units, []
+    kept = [u for u in units if not _NON_UNIT.search(f"{u.label} {u.quote}")]
+    dropped = [f"unit {u.label!r} (not a legal unit per MLS count {mls_units})" for u in units if u not in kept]
+    return kept, dropped
+
+
 def apply_analysis(prop: Property, result: DescriptionAnalysis, *, model: str) -> Property:
     """Validate quotes, fill only UNKNOWN features, and cache the analysis on the property."""
     source = listing_text(prop)
@@ -82,12 +123,13 @@ def apply_analysis(prop: Property, result: DescriptionAnalysis, *, model: str) -
         finding: QuotedFinding = getattr(result, name)
         if finding.state == "unknown":
             continue
-        if not quote_supported(finding.quote, source):
-            rejected.append(f"{name}={finding.state} (quote not found: {finding.quote!r})")
+        ok, why = finding_valid(name, finding, source)
+        if not ok:
+            rejected.append(why)
             continue
         if getattr(features, name).state is FeatureState.UNKNOWN:
             setattr(features, name, Feature(
-                state=FeatureState(finding.state), source=FeatureSource.DESCRIPTION, evidence=finding.quote,
+                state=FeatureState(finding.state), source=FeatureSource.LLM, evidence=finding.quote,
             ))
 
     units: list[UnitLayout] = []
@@ -96,6 +138,8 @@ def apply_analysis(prop: Property, result: DescriptionAnalysis, *, model: str) -
             units.append(u)
         else:
             rejected.append(f"unit {u.label!r} (quote not found)")
+    units, dropped = _clean_units(units, prop.units)
+    rejected += dropped
 
     def checked(f: QuotedFinding) -> QuotedFinding | None:
         if f.state == "unknown":
@@ -135,10 +179,27 @@ def apply_analysis(prop: Property, result: DescriptionAnalysis, *, model: str) -
     return prop.model_copy(update=updates)
 
 
+def reset_text_features(prop: Property) -> Property:
+    """Clear text-derived features (keeps MLS/provider, photo and manual facts) and recompute
+    the deterministic keyword pass, so an outdated analysis can be redone from scratch."""
+    from app.services.features import apply_description_features
+
+    features = prop.features.model_copy(deep=True)
+    for name in PropertyFeatures.model_fields:
+        if getattr(features, name).source in (FeatureSource.DESCRIPTION, FeatureSource.LLM):
+            setattr(features, name, Feature())
+    reset = prop.model_copy(update={"features": features, "llm_analysis": None})
+    if prop.units_evidence and not prop.units_evidence.startswith("MLS"):
+        reset = reset.model_copy(update={"units": None, "units_evidence": None})
+    return apply_description_features(reset)
+
+
 def analyze_description(prop: Property, llm: StructuredLLM, *, model: str) -> Property:
-    """Run once per property; skipped if already analyzed with the current prompt or no text."""
+    """Run once per property; redone if the prompt/validation version changed."""
     if prop.llm_analysis and prop.llm_analysis.prompt_version == PROMPT_VERSION:
         return prop
+    if prop.llm_analysis is not None:
+        prop = reset_text_features(prop)
     text = listing_text(prop)
     if not text:
         return prop

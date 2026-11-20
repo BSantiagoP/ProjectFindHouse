@@ -16,7 +16,8 @@ class FeatureState(StrEnum):
 
 class FeatureSource(StrEnum):
     PROVIDER = "provider"  # structured provider field
-    DESCRIPTION = "description"  # listing text
+    DESCRIPTION = "description"  # listing text, deterministic keyword match
+    LLM = "llm"  # listing text, LLM finding with a validated quote
     PHOTOS = "photos"  # vision analysis (later milestone)
     MANUAL = "manual"  # user-verified
 

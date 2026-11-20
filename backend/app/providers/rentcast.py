@@ -22,6 +22,10 @@ log = logging.getLogger(__name__)
 ReserveFn = Callable[[str, str, int], bool]  # (provider, period, limit) -> reserved?
 
 
+class RentCastAuthError(RuntimeError):
+    pass
+
+
 class RentCastClient:
     name = "rentcast"
 
@@ -32,6 +36,7 @@ class RentCastClient:
         self._reserve = reserve
         self._cap = monthly_cap
         self._today = today
+        self.disabled_reason: str | None = None  # set after an auth failure; no more requests this run
 
     def _unit_rent(self, address: str, unit: UnitLayout) -> UnitRent | None:
         """None means the monthly cap is reached (no request made)."""
@@ -43,6 +48,9 @@ class RentCastClient:
         if unit.bathrooms is not None:
             params["bathrooms"] = unit.bathrooms
         resp = self._client.get("/avm/rent/long-term", params=params, headers=self._headers)
+        if resp.status_code in (401, 403):
+            # Auth failures are not billable requests; stop the run's rent lookups loudly.
+            raise RentCastAuthError(f"RentCast HTTP {resp.status_code}: API key rejected")
         if resp.status_code != 200:
             raise RuntimeError(f"RentCast HTTP {resp.status_code}: {resp.text[:200]}")
         d = resp.json()
@@ -54,15 +62,20 @@ class RentCastClient:
     def estimate(self, prop: Property, owner_unit: OwnerUnit) -> RentEstimate:
         rental = rental_units(prop, owner_unit)
         if rental is None:
-            return RentEstimate(status="not_estimated", reason="Unit layout unknown; cannot tell which units are rented")
+            return RentEstimate(status="not_estimated", reason="Unit layout or bedroom counts unknown; cannot price rental units")
         owner, units = rental
         if not units:
             return RentEstimate(status="not_estimated", reason="No rental units (single-family)", owner_unit=owner)
+        if self.disabled_reason:
+            return RentEstimate(status="not_estimated", reason=f"RentCast error: {self.disabled_reason}", owner_unit=owner)
         address = prop.address.raw
         results: list[UnitRent] = []
         for unit in units:
             try:
                 r = self._unit_rent(address, unit)
+            except RentCastAuthError as exc:
+                self.disabled_reason = str(exc)
+                return RentEstimate(status="not_estimated", reason=f"RentCast error: {exc}", owner_unit=owner)
             except Exception as exc:
                 log.warning("RentCast failed for %s %s: %s", address, unit.label, exc)
                 return RentEstimate(status="not_estimated", reason=f"RentCast error: {exc}", owner_unit=owner)
@@ -84,6 +97,8 @@ def rental_units(prop: Property, owner_unit: OwnerUnit) -> tuple[str | None, lis
     units = prop.llm_analysis.units if prop.llm_analysis else []
     if not units or (prop.units is not None and len(units) != prop.units):
         return None
+    if any(u.bedrooms is None for u in units):
+        return None  # can't pick the owner unit or price a rental without bedroom counts
     ordered = sorted(units, key=lambda u: (u.bedrooms or 0, u.bathrooms or 0),
                      reverse=owner_unit is OwnerUnit.LARGEST)
     return ordered[0].label, ordered[1:]

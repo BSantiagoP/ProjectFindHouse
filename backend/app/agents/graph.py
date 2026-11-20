@@ -78,6 +78,8 @@ def build_graph(deps: AnalysisDeps):
             p = ev.property
             if p.commute is None or p.commute.total_minutes is None:
                 p = p.model_copy(update={"commute": estimate_commute(p, prefs, deps.stops)})
+                if p.commute and (p.commute.nearest_stop or "").startswith("lookup failed"):
+                    errors.append(f"Commute not estimated for {p.address.raw}: {p.commute.nearest_stop}")
             # Rent costs money: only for eligible multifamily, and only if not already estimated.
             needs_rent = (
                 ev.filter.status is FilterStatus.ELIGIBLE
@@ -86,6 +88,9 @@ def build_graph(deps: AnalysisDeps):
             )
             if needs_rent and deps.rentcast is not None:
                 p = p.model_copy(update={"rent_estimate": deps.rentcast.estimate(p, prefs.owner_unit)})
+                reason = p.rent_estimate.reason or ""
+                if reason.startswith(("RentCast error", "Monthly RentCast cap")):
+                    errors.append(f"Rent not estimated for {p.address.raw}: {reason[:160]}")
             elif needs_rent:
                 errors.append("Rent estimate skipped: RentCast not configured")
             ev.property = p
