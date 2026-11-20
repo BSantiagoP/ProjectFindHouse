@@ -48,7 +48,7 @@ def test_search_sends_documented_params_and_auth():
     assert params["type"] == "forSale"
     assert params["price[max]"] == "900000"
     assert params["daysOnZillow"] == "7"
-    assert params.get_list("homeTypes[]") == ["MULTI_FAMILY", "SINGLE_FAMILY"]
+    assert params.get_list("homeTypes[]") == ["multiFamily", "house"]
     assert len(props) == 1
 
 

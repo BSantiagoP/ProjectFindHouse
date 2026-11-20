@@ -1,11 +1,18 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+_ROOT = Path(__file__).resolve().parents[3]
+
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    openai_api_key: str = ""  # used from Milestone 3 (description/photo analysis)
+
+    # Repo-root .env first, backend/.env overrides it.
+    model_config = SettingsConfigDict(env_file=(_ROOT / ".env", _ROOT / "backend" / ".env"), extra="ignore")
 
     api_token: str = ""
     provider: Literal["hasdata", "fixture"] = "fixture"

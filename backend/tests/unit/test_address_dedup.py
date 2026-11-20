@@ -43,3 +43,20 @@ def test_different_units_are_not_duplicates():
     a = make_property(external_id="1", address=Address(raw="x", street="12 Main St", unit="1", zip_code="07071"))
     b = make_property(external_id="2", address=Address(raw="y", street="12 Main St", unit="2", zip_code="07071"))
     assert len(deduplicate([a, b])) == 2
+
+
+def test_same_building_same_price_with_unit_suffix_is_duplicate():
+    from app.models.property import Address
+
+    a = make_property(external_id="1", price=819_900, address=Address(raw="x", street="188 N 6Th St", unit="2", zip_code="07663"))
+    b = make_property(external_id="2", price=819_900, address=Address(raw="y", street="188 N 6th St", zip_code="07663"))
+    result = deduplicate([a, b])
+    assert len(result) == 1 and result[0].external_id == "2"
+
+
+def test_same_building_different_price_kept():
+    from app.models.property import Address
+
+    a = make_property(external_id="1", price=500_000, address=Address(raw="x", street="12 Main St", unit="1", zip_code="07071"))
+    b = make_property(external_id="2", price=520_000, address=Address(raw="y", street="12 Main St", unit="2", zip_code="07071"))
+    assert len(deduplicate([a, b])) == 2

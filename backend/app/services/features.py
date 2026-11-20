@@ -79,7 +79,8 @@ def extract_units(text: str) -> tuple[int | None, str | None]:
 
 def apply_description_features(prop: Property) -> Property:
     """Fill UNKNOWN features from the description. Never overrides a known state."""
-    text = prop.description or ""
+    highlights = ". ".join(h.rstrip(".") for h in prop.highlights)
+    text = "\n".join(t for t in (prop.description, highlights + "." if highlights else "") if t)
     features = prop.features.model_copy(deep=True)
     updates: dict = {}
 

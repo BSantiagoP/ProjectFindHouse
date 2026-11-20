@@ -81,6 +81,10 @@ class Property(BaseModel):
     days_on_market: int | None = None
     status: str | None = None
     description: str | None = None
+    highlights: list[str] = Field(default_factory=list)  # short listing bullet points
+    photo_urls: list[str] = Field(default_factory=list)
+    latitude: float | None = None
+    longitude: float | None = None
     provider_estimated_rent: int | None = None  # provider estimate; RentCast is the scoring source
     annual_tax: int | None = None
     features: PropertyFeatures = Field(default_factory=PropertyFeatures)

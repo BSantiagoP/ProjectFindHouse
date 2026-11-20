@@ -8,15 +8,25 @@ Each successful request costs 10 credits. The response shapes below come from Ha
 published excerpts; field names marked "unverified" must be confirmed with a live call.
 """
 
+import json
 import logging
+import re
 import time
 from collections.abc import Callable
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 import httpx
 
-from app.models.property import Property, PropertyType
+from app.models.property import (
+    Address,
+    Feature,
+    FeatureSource,
+    FeatureState,
+    Property,
+    PropertyFeatures,
+    PropertyType,
+)
 from app.providers.base import (
     ProviderAuthError,
     ProviderQuotaError,
@@ -29,12 +39,13 @@ from app.services.address import parse_address
 
 log = logging.getLogger(__name__)
 
-# Zillow home-type identifiers. MULTI_FAMILY is unverified for HasData's homeTypes[] filter.
+# homeTypes[] request values, confirmed from a live 422 response (2026-11-20). Allowed:
+# house, townhome, multiFamily, condo, lot, apartment, manufactured.
 _TO_ZILLOW_TYPE = {
-    PropertyType.SINGLE_FAMILY: "SINGLE_FAMILY",
-    PropertyType.MULTI_FAMILY: "MULTI_FAMILY",
-    PropertyType.CONDO: "CONDO",
-    PropertyType.TOWNHOUSE: "TOWNHOUSE",
+    PropertyType.SINGLE_FAMILY: "house",
+    PropertyType.MULTI_FAMILY: "multiFamily",
+    PropertyType.CONDO: "condo",
+    PropertyType.TOWNHOUSE: "townhome",
 }
 _FROM_ZILLOW_TYPE = {
     "SINGLE_FAMILY": PropertyType.SINGLE_FAMILY,
@@ -148,7 +159,9 @@ class HasDataProvider:
     def normalize_listing(self, rec: dict[str, Any]) -> Property | None:
         ext_id = rec.get("id") or rec.get("zpid")
         url = rec.get("url")
-        address_raw = rec.get("addressRaw") or rec.get("address")
+        address_raw = rec.get("addressRaw")
+        if not address_raw and isinstance(rec.get("address"), dict):
+            address_raw = rec["address"].get("addressRaw")
         if not ext_id or not url or not isinstance(address_raw, str):
             log.warning("Skipping HasData record missing id/url/address: %s", rec.get("id"))
             return None
@@ -158,9 +171,12 @@ class HasDataProvider:
             provider=self.name,
             external_id=str(ext_id),
             source_url=url,
-            address=parse_address(address_raw),
+            address=_address(rec.get("address"), address_raw),
+            latitude=_as_float(rec.get("latitude")),
+            longitude=_as_float(rec.get("longitude")),
+            photo_urls=_photos(rec.get("photos")),
             town=None,  # resolved by discovery against configured towns
-            price=_as_int(rec.get("price")),
+            price=_as_price(rec.get("price")),
             property_type=_FROM_ZILLOW_TYPE.get(str(rec.get("homeType", "")).upper(), PropertyType.OTHER)
             if rec.get("homeType")
             else PropertyType.UNKNOWN,
@@ -183,7 +199,7 @@ class HasDataProvider:
             ("beds", "beds", _as_float),
             ("baths", "baths", _as_float),
             ("yearBuilt", "year_built", _as_int),
-            ("price", "price", _as_int),
+            ("price", "price", _as_price),
         ):
             if (val := conv(d.get(src))) is not None:
                 updates[dst] = val
@@ -192,12 +208,92 @@ class HasDataProvider:
             updates["living_area_sqft"] = living
         if ht := d.get("homeType"):
             updates["property_type"] = _FROM_ZILLOW_TYPE.get(str(ht).upper(), PropertyType.OTHER)
-        if (tax := _latest_tax(d.get("taxHistory"))) is not None:
+        if isinstance(d.get("highlights"), list):
+            updates["highlights"] = [h for h in d["highlights"] if isinstance(h, str)]
+        if photos := _photos(d.get("photos")):
+            updates["photo_urls"] = photos
+        geo = d.get("geo")
+        if isinstance(geo, dict):
+            updates["latitude"] = _as_float(geo.get("latitude")) or prop.latitude
+            updates["longitude"] = _as_float(geo.get("longitude")) or prop.longitude
+
+        reso = d.get("resoData") if isinstance(d.get("resoData"), dict) else {}
+        if (tax := _as_int(reso.get("taxAnnualAmount"))) is not None:
             updates["annual_tax"] = tax
+        elif (tax := _latest_tax(d.get("taxHistory"))) is not None:
+            updates["annual_tax"] = tax
+        if not updates.get("listed_date") and (ms := _as_int(reso.get("onMarketDate"))):
+            updates["listed_date"] = datetime.fromtimestamp(ms / 1000, tz=timezone.utc).date()
+        if units := _units_from_structure(reso.get("structureType")):
+            updates["units"], updates["units_evidence"] = units, f"MLS structure type: {reso['structureType']}"
+        updates["features"] = _reso_features(prop.features, reso)
         return prop.model_copy(update=updates)
 
 
 # ---- helpers ------------------------------------------------------------------
+
+_STREET_PARKING = {"on street", "street", "none"}
+
+
+def _reso_features(current: PropertyFeatures, reso: dict[str, Any]) -> PropertyFeatures:
+    """Map MLS structured facts to features (source=provider).
+
+    Live data showed hasGarage=false on a listing with parkingFeatures=["Garage"] and a
+    2-car garage in the description, so hasGarage is never used to mark a garage absent.
+    """
+    f = current.model_copy(deep=True)
+
+    def ev(field: str) -> str:
+        return f"MLS {field}: {json.dumps(reso.get(field))}"
+
+    parking = [str(x) for x in reso.get("parkingFeatures") or [] if x]
+    parking_l = [p.lower() for p in parking]
+    garage_cap = _as_int(reso.get("garageParkingCapacity")) or 0
+    if garage_cap > 0 or any("garage" in p for p in parking_l):
+        f.garage = Feature(state=FeatureState.PRESENT, source=FeatureSource.PROVIDER,
+                           evidence=ev("parkingFeatures") + (f", garageParkingCapacity: {garage_cap}" if garage_cap else ""))
+    if any("driveway" in p or "off street" in p or "off-street" in p for p in parking_l):
+        f.driveway = Feature(state=FeatureState.PRESENT, source=FeatureSource.PROVIDER, evidence=ev("parkingFeatures"))
+    if parking_l and all(p in _STREET_PARKING for p in parking_l) and garage_cap == 0:
+        absent = Feature(state=FeatureState.ABSENT, source=FeatureSource.PROVIDER, evidence=ev("parkingFeatures"))
+        f.garage = f.garage if f.garage.is_present else absent
+        f.driveway = f.driveway if f.driveway.is_present else absent
+
+    laundry = [str(x).strip() for x in reso.get("laundryFeatures") or [] if x]
+    if laundry:
+        state = FeatureState.ABSENT if all(x.lower() == "none" for x in laundry) else FeatureState.PRESENT
+        f.laundry = Feature(state=state, source=FeatureSource.PROVIDER, evidence=ev("laundryFeatures"))
+    return f
+
+
+def _units_from_structure(val: Any) -> int | None:
+    if not isinstance(val, str):
+        return None
+    m = re.match(r"\s*(\d+)\s*(family|unit)", val, re.I)
+    return int(m.group(1)) if m else None
+
+
+def _address(addr: Any, raw: str) -> Address:
+    parsed = parse_address(raw)
+    if not isinstance(addr, dict):
+        return parsed
+    return parsed.model_copy(update={
+        "city": addr.get("city") or parsed.city,
+        "state": addr.get("state") or parsed.state,
+        "zip_code": addr.get("zipcode") or parsed.zip_code,
+    })
+
+
+def _photos(val: Any) -> list[str]:
+    if not isinstance(val, list):
+        return []
+    out = []
+    for p in val:
+        if isinstance(p, str):
+            out.append(p)
+        elif isinstance(p, dict) and isinstance(p.get("url"), str):
+            out.append(p["url"])
+    return out
 
 
 def _split_listing_payload(payload: Any, page: int) -> tuple[list[dict[str, Any]], bool]:
@@ -210,7 +306,8 @@ def _split_listing_payload(payload: Any, page: int) -> tuple[list[dict[str, Any]
     pagination = payload.get("pagination") or {}
     has_next = False
     if isinstance(pagination, dict):
-        if pagination.get("nextPage") or pagination.get("next"):
+        # Live shape: {"currentPage": 1, "otherPages": {}}; non-empty otherPages => more pages.
+        if pagination.get("otherPages") or pagination.get("nextPage") or pagination.get("next"):
             has_next = True
         total = _as_int(pagination.get("totalPages"))
         if total is not None and page < total:
@@ -235,6 +332,12 @@ def _as_int(val: Any) -> int | None:
         return int(round(float(val)))
     except (TypeError, ValueError):
         return None
+
+
+def _as_price(val: Any) -> int | None:
+    """Live data returns price 0 for unpriced listings; treat that as unknown."""
+    price = _as_int(val)
+    return price if price is not None and price > 0 else None
 
 
 def _as_float(val: Any) -> float | None:
