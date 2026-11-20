@@ -6,7 +6,8 @@ from app.core.config import Settings, get_settings
 from app.main import app
 from app.models.preferences import SearchPreferences
 from app.providers.fixture import make_fixture_provider
-from app.repositories.memory import MemoryStore, get_store
+from app.repositories.factory import get_repository
+from app.repositories.memory import MemoryRepository
 from app.services.discovery import run_discovery
 from app.services.filtering import FilterStatus
 from tests.conftest import TODAY
@@ -71,8 +72,8 @@ def test_budget_exhaustion_degrades_gracefully():
 
 
 def test_api_requires_token_and_returns_eligible():
-    store = MemoryStore()
-    app.dependency_overrides[get_store] = lambda: store
+    repo = MemoryRepository()
+    app.dependency_overrides[get_repository] = lambda: repo
     app.dependency_overrides[get_settings] = lambda: Settings(api_token="secret", provider="fixture", max_requests_per_run=20)
     try:
         client = TestClient(app)
@@ -106,6 +107,7 @@ def test_api_requires_token_and_returns_eligible():
 
 def test_api_fails_closed_without_configured_token():
     app.dependency_overrides[get_settings] = lambda: Settings(api_token="")
+    app.dependency_overrides[get_repository] = lambda: MemoryRepository()
     try:
         assert TestClient(app).get("/api/properties").status_code == 503
     finally:

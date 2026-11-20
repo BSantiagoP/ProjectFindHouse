@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     max_requests_per_run: int = 25
     max_pages_per_town: int = 1
     fetch_details: bool = True
+    # Persistence. Both empty -> in-memory repository (data lost on restart).
+    supabase_url: str = ""
+    supabase_service_role_key: str = ""
 
 
 @lru_cache
