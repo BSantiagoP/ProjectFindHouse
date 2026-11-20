@@ -1,0 +1,40 @@
+{
+  "_comment": "SYNTHETIC data shaped like HasData /scrape/zillow/listing excerpts. Fictional addresses. Replace with sanitized live recordings once HasData access is approved.",
+  "Lyndhurst, NJ": {
+    "properties": [
+      {"id": "900001", "url": "https://www.zillow.com/homedetails/12-Sampleton-Ave-Lyndhurst-NJ-07071/900001_zpid/", "homeType": "MULTI_FAMILY", "status": "FOR_SALE", "price": 695000, "currency": "$", "estimatedRent": 2600, "daysOnZillow": 2, "area": 2400, "addressRaw": "12 Sampleton Avenue, Lyndhurst, NJ 07071"},
+      {"id": "900006", "url": "https://www.zillow.com/homedetails/48-Fixture-St-Lyndhurst-NJ-07071/900006_zpid/", "homeType": "MULTI_FAMILY", "status": "FOR_SALE", "price": 880000, "currency": "$", "daysOnZillow": 1, "area": 3100, "addressRaw": "48 Fixture St, Lyndhurst, NJ 07071"},
+      {"id": "900011", "url": "https://www.zillow.com/homedetails/5-Mockingbird-Ln-Lyndhurst-NJ-07071/900011_zpid/", "homeType": "MULTI_FAMILY", "status": "FOR_SALE", "price": 850000, "currency": "$", "daysOnZillow": 3, "area": 4200, "addressRaw": "5 Mockingbird Ln, Lyndhurst, NJ 07071"}
+    ],
+    "pagination": {"currentPage": 1, "totalPages": 1}
+  },
+  "Fairview, NJ": {
+    "properties": [
+      {"id": "900002", "url": "https://www.zillow.com/homedetails/301-Example-Rd-Fairview-NJ-07022/900002_zpid/", "homeType": "MULTI_FAMILY", "status": "FOR_SALE", "price": 725000, "currency": "$", "daysOnZillow": 4, "area": 2800, "addressRaw": "301 Example Road, Fairview, NJ 07022"},
+      {"id": "900001", "url": "https://www.zillow.com/homedetails/12-Sampleton-Ave-Lyndhurst-NJ-07071/900001_zpid/", "homeType": "MULTI_FAMILY", "status": "FOR_SALE", "price": 695000, "currency": "$", "daysOnZillow": 2, "area": 2400, "addressRaw": "12 Sampleton Avenue, Lyndhurst, NJ 07071"},
+      {"id": "900010", "url": "https://www.zillow.com/homedetails/77-Placeholder-Ave-Ridgefield-NJ-07657/900010_zpid/", "homeType": "MULTI_FAMILY", "status": "FOR_SALE", "price": 799000, "currency": "$", "daysOnZillow": 2, "area": 2600, "addressRaw": "77 Placeholder Ave, Ridgefield, NJ 07657"}
+    ],
+    "pagination": {"currentPage": 1, "totalPages": 1}
+  },
+  "Cliffside Park, NJ": {
+    "properties": [
+      {"id": "900003", "url": "https://www.zillow.com/homedetails/9-Demo-Pl-Cliffside-Park-NJ-07010/900003_zpid/", "homeType": "MULTI_FAMILY", "status": "FOR_SALE", "price": 749000, "currency": "$", "daysOnZillow": 5, "area": 2500, "addressRaw": "9 Demo Pl, Cliffside Park, NJ 07010"},
+      {"id": "900007", "url": "https://www.zillow.com/homedetails/200-Testview-Ter-APT-4B-Cliffside-Park-NJ-07010/900007_zpid/", "homeType": "CONDO", "status": "FOR_SALE", "price": 450000, "currency": "$", "daysOnZillow": 1, "area": 1100, "addressRaw": "200 Testview Ter APT 4B, Cliffside Park, NJ 07010"},
+      {"id": "900009", "url": "https://www.zillow.com/homedetails/15-Sample-Ct-Cliffside-Park-NJ-07010/900009_zpid/", "homeType": "MULTI_FAMILY", "status": "FOR_SALE", "price": 950000, "currency": "$", "daysOnZillow": 3, "area": 3300, "addressRaw": "15 Sample Ct, Cliffside Park, NJ 07010"}
+    ],
+    "pagination": {"currentPage": 1, "totalPages": 1}
+  },
+  "Elmwood Park, NJ": {
+    "properties": [
+      {"id": "900004", "url": "https://www.zillow.com/homedetails/33-Notreal-Dr-Elmwood-Park-NJ-07407/900004_zpid/", "homeType": "SINGLE_FAMILY", "status": "FOR_SALE", "price": 640000, "currency": "$", "daysOnZillow": 6, "area": 2100, "addressRaw": "33 Notreal Dr, Elmwood Park, NJ 07407"},
+      {"id": "900008", "url": "https://www.zillow.com/homedetails/8-Imaginary-Blvd-Elmwood-Park-NJ-07407/900008_zpid/", "homeType": "MULTI_FAMILY", "status": "FOR_SALE", "price": 760000, "currency": "$", "daysOnZillow": 2, "area": 2700, "addressRaw": "8 Imaginary Blvd, Elmwood Park, NJ 07407"}
+    ],
+    "pagination": {"currentPage": 1, "totalPages": 1}
+  },
+  "Saddle Brook, NJ": {
+    "properties": [
+      {"id": "900005", "url": "https://www.zillow.com/homedetails/71-Fakeway-Ln-Saddle-Brook-NJ-07663/900005_zpid/", "homeType": "SINGLE_FAMILY", "status": "FOR_SALE", "price": 610000, "currency": "$", "daysOnZillow": 3, "area": 1900, "addressRaw": "71 Fakeway Ln, Saddle Brook, NJ 07663"}
+    ],
+    "pagination": {"currentPage": 1, "totalPages": 1}
+  }
+}

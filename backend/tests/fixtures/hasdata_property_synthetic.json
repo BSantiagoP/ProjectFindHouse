@@ -1,0 +1,35 @@
+{
+  "https://www.zillow.com/homedetails/12-Sampleton-Ave-Lyndhurst-NJ-07071/900001_zpid/": {
+    "property": {"beds": 5, "baths": 2, "area": {"livingArea": 2400}, "yearBuilt": 1925, "homeType": "MULTI_FAMILY", "price": 695000,
+      "description": "Well-kept two-family home in a quiet Lyndhurst block. Detached 1-car garage plus driveway. Shared laundry in the basement. Fenced backyard with patio.",
+      "taxHistory": [{"time": 1704067200000, "taxPaid": 11200, "value": 520000}, {"time": 1672531200000, "taxPaid": 10900, "value": 500000}]}
+  },
+  "https://www.zillow.com/homedetails/301-Example-Rd-Fairview-NJ-07022/900002_zpid/": {
+    "property": {"beds": 6, "baths": 3, "homeType": "MULTI_FAMILY", "price": 725000,
+      "description": "Three-family investment opportunity. Long driveway fits 3 cars. Washer/dryer hookups in each unit. Partially finished basement."}
+  },
+  "https://www.zillow.com/homedetails/9-Demo-Pl-Cliffside-Park-NJ-07010/900003_zpid/": {
+    "property": {"beds": 4, "baths": 2, "homeType": "MULTI_FAMILY", "price": 749000,
+      "description": "Bright 2-family near Anderson Ave shops and NYC buses. Street parking only. Coin laundry in basement."}
+  },
+  "https://www.zillow.com/homedetails/33-Notreal-Dr-Elmwood-Park-NJ-07407/900004_zpid/": {
+    "property": {"beds": 3, "baths": 2.5, "homeType": "SINGLE_FAMILY", "price": 640000,
+      "description": "Colonial with attached garage. Fully finished basement with a full bathroom and laundry room. Deck overlooking the yard."}
+  },
+  "https://www.zillow.com/homedetails/71-Fakeway-Ln-Saddle-Brook-NJ-07663/900005_zpid/": {
+    "property": {"beds": 3, "baths": 1, "homeType": "SINGLE_FAMILY", "price": 610000,
+      "description": "Cape cod with 2-car garage. Unfinished basement with washer and dryer. Large yard."}
+  },
+  "https://www.zillow.com/homedetails/48-Fixture-St-Lyndhurst-NJ-07071/900006_zpid/": {
+    "property": {"beds": 6, "baths": 3, "homeType": "MULTI_FAMILY", "price": 880000,
+      "description": "Spacious 3-family home with a 2-car garage. Close to NJ Transit."}
+  },
+  "https://www.zillow.com/homedetails/8-Imaginary-Blvd-Elmwood-Park-NJ-07407/900008_zpid/": {
+    "property": {"beds": 4, "baths": 2, "homeType": "MULTI_FAMILY", "price": 760000, "datePosted": "2026-01-05",
+      "description": "Two-family with driveway and in-unit laundry."}
+  },
+  "https://www.zillow.com/homedetails/5-Mockingbird-Ln-Lyndhurst-NJ-07071/900011_zpid/": {
+    "property": {"beds": 10, "baths": 5, "homeType": "MULTI_FAMILY", "price": 850000,
+      "description": "Rare 5-unit building with off-street parking and a shared laundry room."}
+  }
+}
