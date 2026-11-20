@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     rentcast_api_key: str = ""
     rentcast_monthly_cap: int = 45  # stays inside RentCast's 50 free requests/month
     analysis_enabled: bool = True
+    photo_analysis_enabled: bool = True
 
     # Repo-root .env first, backend/.env overrides it.
     model_config = SettingsConfigDict(env_file=(_ROOT / ".env", _ROOT / "backend" / ".env"), extra="ignore")

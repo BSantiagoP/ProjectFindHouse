@@ -1,10 +1,9 @@
 """LangGraph analysis workflow (plan.md section 8).
 
-load_candidates -> analyze_description -> refilter -> enrich (rent, commute)
+load_candidates -> analyze_description -> analyze_photos -> refilter -> enrich (rent, commute)
   -> score -> validate -> select_top
 
 Paid/slow calls are cached on the Property, so re-runs only analyze new listings.
-analyze_photos slots in after analyze_description in a later step.
 """
 
 import logging
@@ -21,6 +20,7 @@ from app.services.commute import StopFinder, estimate_commute
 from app.models.analysis import CommuteEstimate
 from app.services.description_analysis import PROMPT_VERSION, StructuredLLM, analyze_description, reset_text_features
 from app.services.discovery import DiscoveryRun, EvaluatedProperty
+from app.services.photo_analysis import VisionLLM, analyze_photos
 from app.services.filtering import FilterStatus, apply_hard_filters
 from app.services.rates import MortgageRate
 from app.services.scoring import score_property
@@ -36,6 +36,7 @@ class AnalysisDeps:
     stops: StopFinder | None
     rate: MortgageRate
     today: date = field(default_factory=date.today)
+    vision: VisionLLM | None = None
 
 
 class State(TypedDict):
@@ -72,6 +73,18 @@ def build_graph(deps: AnalysisDeps):
             except Exception as exc:
                 log.warning("LLM analysis failed for %s: %s", ev.property.address.raw, exc)
                 errors.append(f"Description analysis failed for {ev.property.address.raw}: {exc}")
+        return {"errors": errors}
+
+    def analyze_photos_node(state: State) -> dict[str, Any]:
+        errors = list(state["errors"])
+        if deps.vision is None:
+            return {}
+        for ev in state["candidates"]:
+            try:
+                ev.property = analyze_photos(ev.property, deps.vision)
+            except Exception as exc:
+                log.warning("Photo analysis failed for %s: %s", ev.property.address.raw, exc)
+                errors.append(f"Photo analysis failed for {ev.property.address.raw}: {exc}"[:300])
         return {"errors": errors}
 
     def refilter(state: State) -> dict[str, Any]:
@@ -141,6 +154,7 @@ def build_graph(deps: AnalysisDeps):
     g = StateGraph(State)
     g.add_node("load_candidates", load_candidates)
     g.add_node("analyze_description", analyze_description_node)
+    g.add_node("analyze_photos", analyze_photos_node)
     g.add_node("refilter", refilter)
     g.add_node("enrich", enrich)
     g.add_node("score", score)
@@ -148,7 +162,8 @@ def build_graph(deps: AnalysisDeps):
     g.add_node("select_top", select_top)
     g.add_edge(START, "load_candidates")
     g.add_conditional_edges("load_candidates", has_candidates, ["analyze_description", END])
-    g.add_edge("analyze_description", "refilter")
+    g.add_edge("analyze_description", "analyze_photos")
+    g.add_edge("analyze_photos", "refilter")
     g.add_edge("refilter", "enrich")
     g.add_edge("enrich", "score")
     g.add_edge("score", "validate")

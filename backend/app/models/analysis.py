@@ -98,3 +98,68 @@ class CommuteEstimate(BaseModel):
     walk_minutes: int | None = None
     total_minutes: int | None = None
     source: str = "town_table+njt_gtfs"
+
+
+# ---- Photo analysis -------------------------------------------------------------------
+
+class Room(StrEnum):
+    EXTERIOR_FRONT = "exterior_front"
+    EXTERIOR_BACK_YARD = "exterior_back_yard"
+    GARAGE = "garage"
+    DRIVEWAY = "driveway"
+    KITCHEN = "kitchen"
+    BATHROOM = "bathroom"
+    BEDROOM = "bedroom"
+    LIVING_DINING = "living_dining"
+    BASEMENT = "basement"
+    LAUNDRY = "laundry"
+    OTHER = "other"
+
+
+class PhotoLabel(BaseModel):
+    index: int = Field(description="The photo number exactly as given in the input")
+    rooms: list[Room] = Field(description="Areas visible; use basement for any below-grade space")
+
+
+class PhotoTriage(BaseModel):
+    photos: list[PhotoLabel]
+
+
+class PhotoFinding(BaseModel):
+    state: Literal["present", "unknown"] = Field(description="Photos can confirm presence only; never 'absent'")
+    photo_numbers: list[int] = Field(default_factory=list, description="Photo numbers that clearly show it")
+    observation: str | None = Field(default=None, description="What is visible, in a few words")
+    confidence: Literal["high", "medium", "low"] = "low"
+
+
+class PhotoFindings(BaseModel):
+    garage: PhotoFinding
+    driveway: PhotoFinding
+    laundry: PhotoFinding = Field(description="Washer/dryer, laundry room or visible hookups")
+    finished_basement: PhotoFinding = Field(description="Below-grade space with finished walls, floors and ceiling")
+    basement_bathroom: PhotoFinding = Field(description="A bathroom that is clearly in the basement")
+    outdoor_space: PhotoFinding
+    condition: Condition
+    condition_photo_numbers: list[int] = Field(default_factory=list)
+    condition_observation: str | None = None
+
+
+class PhotoAnalysis(BaseModel):
+    model: str
+    version: str
+    photos_total: int
+    photos_triaged: int
+    photos_examined: list[int] = Field(default_factory=list)  # 1-based photo numbers sent at full detail
+    accepted: list[str] = Field(default_factory=list)
+    rejected: list[str] = Field(default_factory=list)
+    likely: list[str] = Field(default_factory=list)  # medium-confidence findings on required features
+    condition: Condition = Condition.UNKNOWN
+    condition_note: str | None = None
+    skipped_reason: str | None = None
+    # Raw model output + photo mapping, so rule changes re-apply without new API calls.
+    raw_findings: PhotoFindings | None = None
+    targets: list[str] = Field(default_factory=list)
+    picked: list[int] = Field(default_factory=list)  # 0-based indexes sent in pass 2
+    rooms_by_sent: dict[int, list[Room]] = Field(default_factory=dict)
+    staged: bool = False
+    analyzed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

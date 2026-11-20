@@ -5,7 +5,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field, HttpUrl
 
-from app.models.analysis import CommuteEstimate, LLMAnalysis, RentEstimate
+from app.models.analysis import CommuteEstimate, LLMAnalysis, PhotoAnalysis, RentEstimate
 
 
 class FeatureState(StrEnum):
@@ -94,6 +94,7 @@ class Property(BaseModel):
     details_fetched: bool = False
     # Cached analysis (computed once per property, persisted, reused on later runs)
     llm_analysis: LLMAnalysis | None = None
+    photo_analysis: PhotoAnalysis | None = None
     rent_estimate: RentEstimate | None = None
     commute: CommuteEstimate | None = None
     observed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

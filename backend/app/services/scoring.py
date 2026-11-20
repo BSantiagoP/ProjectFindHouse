@@ -116,12 +116,16 @@ def score_property(prop: Property, prefs: SearchPreferences, rate: MortgageRate)
                                   reason="Commute not estimated (no coordinates or nearby stop)"))
         missing.append("commute")
 
-    # Condition from the listing text (photos later).
+    # Condition from the listing text; photos only when the text doesn't say.
     cond = prop.llm_analysis.condition if prop.llm_analysis else Condition.UNKNOWN
+    photo = prop.photo_analysis
     if cond in _CONDITION_SCORES:
         quote = prop.llm_analysis.condition_quote
         cats.append(CategoryScore(name="condition", weight=w.condition, score=_CONDITION_SCORES[cond],
                                   reason=f"{cond.value.replace('_', ' ')}: \"{quote}\""))
+    elif photo and photo.condition in _CONDITION_SCORES:
+        cats.append(CategoryScore(name="condition", weight=w.condition, score=_CONDITION_SCORES[photo.condition],
+                                  reason=f"{photo.condition.value.replace('_', ' ')} (from photos) — {photo.condition_note}"))
     else:
         cats.append(CategoryScore(name="condition", weight=w.condition, score=None, reason="Condition not stated"))
         missing.append("condition")
