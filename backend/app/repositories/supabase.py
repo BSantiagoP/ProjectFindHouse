@@ -228,3 +228,35 @@ class SupabaseRepository:
         if snapshot_rows:
             self._insert("property_snapshots", snapshot_rows)
         self._upsert("run_results", result_rows, "search_run_id,property_id")
+
+    # ---- notifications ----
+    def sent_property_ids(self, recipient_key: str) -> set[str]:
+        rows = self._req("GET", "sent_properties", params={"recipient_key": f"eq.{recipient_key}", "select": "property_id"})
+        return {r["property_id"] for r in rows}
+
+    def is_opted_out(self, recipient_key: str) -> bool:
+        rows = self._req("GET", "recipient_status", params={"recipient_key": f"eq.{recipient_key}", "select": "opted_out"})
+        return bool(rows and rows[0]["opted_out"])
+
+    def reserve_notification(self, run_id: str, recipient_key: str, last2: str, property_ids: list[str]) -> bool:
+        """Insert-if-absent. Returns False if this (run, recipient) was already reserved/sent."""
+        rows = self._req("POST", "notifications", params={"on_conflict": "search_run_id,recipient_key"},
+                         body=[{"search_run_id": run_id, "recipient_key": recipient_key, "recipient_last2": last2,
+                                "status": "reserved", "property_ids": property_ids}],
+                         prefer="resolution=ignore-duplicates,return=representation")
+        return bool(rows)
+
+    def finish_notification(self, run_id, recipient_key, status, sid, error, property_ids) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        self._req("PATCH", "notifications",
+                  params={"search_run_id": f"eq.{run_id}", "recipient_key": f"eq.{recipient_key}"},
+                  body={"status": status, "twilio_sid": sid, "error": error, "updated_at": now},
+                  prefer="return=minimal")
+        if status == "sent" and property_ids:
+            self._req("POST", "sent_properties", params={"on_conflict": "recipient_key,property_id"},
+                      body=[{"recipient_key": recipient_key, "property_id": pid} for pid in property_ids],
+                      prefer="resolution=ignore-duplicates,return=minimal")
+
+    def set_opted_out(self, recipient_key: str) -> None:
+        self._upsert("recipient_status", [{"recipient_key": recipient_key, "opted_out": True,
+                                           "updated_at": datetime.now(timezone.utc).isoformat()}], "recipient_key")

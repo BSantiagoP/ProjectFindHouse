@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     rentcast_api_key: str = ""
     rentcast_monthly_cap: int = 45  # stays inside RentCast's 50 free requests/month
     analysis_enabled: bool = True
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_phone_number: str = ""
+    twilio_messaging_service_sid: str = ""  # service holding the verified A2P 10DLC campaign
+    sms_enabled: bool = False  # sending requires explicit opt-in
     photo_analysis_enabled: bool = True
 
     # Repo-root .env first, backend/.env overrides it.
@@ -37,3 +42,19 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def load_recipients() -> list:
+    """RECIPIENT1..N from the environment / .env files (never stored in the database)."""
+    import os
+
+    from dotenv import dotenv_values
+
+    from app.notifications.digest import recipients_from_env
+
+    env: dict[str, str | None] = {}
+    for f in (_ROOT / ".env", _ROOT / "backend" / ".env"):
+        if f.exists():
+            env.update(dotenv_values(f))
+    env.update({k: v for k, v in os.environ.items() if k.startswith("RECIPIENT")})
+    return recipients_from_env(env)

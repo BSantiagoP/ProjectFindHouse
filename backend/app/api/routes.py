@@ -156,6 +156,23 @@ def latest_report(repo: RepoDep) -> list[PropertyOut]:
     return [PropertyOut.from_evaluated(ev) for ev in ranked]
 
 
+@router.post("/notifications/send-latest")
+def send_latest_digest(repo: RepoDep, settings: Annotated[Settings, Depends(get_settings)]) -> list[dict]:
+    """Send the latest run's digest to all recipients. Idempotent per run and recipient."""
+    if not settings.sms_enabled:
+        raise HTTPException(status.HTTP_409_CONFLICT, "SMS is disabled (set SMS_ENABLED=true)")
+    from app.core.config import load_recipients
+    from app.jobs.daily_search import build_sender
+    from app.notifications.digest import send_digest
+
+    run = repo.latest_run()
+    if run is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No search run yet")
+    reports = send_digest(run, load_recipients(), repo, build_sender(settings),
+                          limit=repo.get_preferences().max_recommendations)
+    return [{"recipient": r.recipient_key, "status": r.status, "count": r.count, "error": r.error} for r in reports]
+
+
 @router.get("/preferences", response_model=SearchPreferences)
 def read_preferences(repo: RepoDep) -> SearchPreferences:
     try:

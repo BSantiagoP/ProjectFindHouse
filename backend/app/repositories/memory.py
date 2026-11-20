@@ -21,6 +21,9 @@ class MemoryRepository:
         self.snapshots: dict[str, list[PriceSnapshot]] = {}
         self.preferences = SearchPreferences()
         self.api_usage: dict[tuple[str, str], int] = {}
+        self.notifications: dict[tuple[str, str], dict] = {}
+        self.sent: dict[str, set[str]] = {}
+        self.opted_out: set[str] = set()
 
     def known_properties(self, keys: list[ListingKey]) -> dict[ListingKey, Property]:
         return {k: self.properties[self.listings[k]] for k in keys if k in self.listings}
@@ -66,3 +69,27 @@ class MemoryRepository:
 
     def save_preferences(self, prefs: SearchPreferences) -> None:
         self.preferences = prefs
+
+    # ---- notifications ----
+    def sent_property_ids(self, recipient_key: str) -> set[str]:
+        return set(self.sent.get(recipient_key, set()))
+
+    def is_opted_out(self, recipient_key: str) -> bool:
+        return recipient_key in self.opted_out
+
+    def reserve_notification(self, run_id: str, recipient_key: str, last2: str, property_ids: list[str]) -> bool:
+        with self._lock:
+            if (run_id, recipient_key) in self.notifications:
+                return False
+            self.notifications[(run_id, recipient_key)] = {"status": "reserved", "property_ids": property_ids}
+            return True
+
+    def finish_notification(self, run_id, recipient_key, status, sid, error, property_ids) -> None:
+        with self._lock:
+            self.notifications[(run_id, recipient_key)] = {"status": status, "sid": sid, "error": error,
+                                                           "property_ids": property_ids}
+            if status == "sent":
+                self.sent.setdefault(recipient_key, set()).update(property_ids)
+
+    def set_opted_out(self, recipient_key: str) -> None:
+        self.opted_out.add(recipient_key)
