@@ -6,7 +6,7 @@
   <string>com.homescout.daily</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/bryampiedra/Desktop/FindingAHouse/backend/scripts/run_daily.sh</string>
+    <string>/Users/bryampiedra/Projects/FindingAHouse/backend/scripts/run_daily.sh</string>
   </array>
   <!-- Check hourly (and at login). The job itself decides if a run is due:
        every RUN_EVERY_DAYS days, at/after RUN_HOUR Eastern. A closed Mac catches up on wake. -->
