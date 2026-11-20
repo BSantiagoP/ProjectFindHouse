@@ -278,24 +278,33 @@ def test_rentcast_auth_failure_stops_further_requests():
     assert len(calls) == 1  # second property never hits the API
 
 
-def test_overpass_falls_back_to_mirror():
-    from app.services.commute import OverpassStopFinder
+def test_gtfs_finder_uses_ny_bound_bus_stops_and_rail(tmp_path):
+    import json as _json
+    from app.services.commute import GtfsStopFinder
 
-    hosts = []
-
-    def handler(req):
-        hosts.append(req.url.host)
-        if len(hosts) == 1:
-            return httpx.Response(502)
-        return httpx.Response(200, json={"elements": [
-            {"lat": 40.801, "lon": -74.1, "tags": {"name": "Far"}},
-            {"lat": 40.8001, "lon": -74.1, "tags": {"name": "Near"}},
-        ]})
-
-    finder = OverpassStopFinder(client=httpx.Client(transport=httpx.MockTransport(handler)), sleep=lambda s: None)
+    f = tmp_path / "stops.json"
+    f.write_text(_json.dumps({
+        "bus_ny_bound": [{"name": "Far St", "lat": 40.81, "lon": -74.1, "routes": ["156"]},
+                         {"name": "Near St", "lat": 40.8005, "lon": -74.1, "routes": ["159", "156"]}],
+        "rail": [{"name": "Lyndhurst", "lat": 40.802, "lon": -74.1}],
+    }))
+    finder = GtfsStopFinder(f)
     name, meters = finder.nearest(40.8, -74.1, "bus")
-    assert name == "Near" and meters < 20
-    assert hosts[0] != hosts[1]
+    assert name.startswith("Near St (bus 159, 156)") and 50 < meters < 60
+    assert finder.nearest(40.8, -74.1, "rail")[0] == "Lyndhurst station"
+    assert finder.nearest(41.5, -74.1, "bus") is None  # nothing within radius
+
+
+def test_real_gtfs_extract_has_stops_near_each_town():
+    from app.services.commute import GtfsStopFinder
+
+    finder = GtfsStopFinder()
+    centers = {"Cliffside Park": (40.8215, -73.9879), "Fairview": (40.8126, -73.9990),
+               "Elmwood Park": (40.9040, -74.1185), "Saddle Brook": (40.8990, -74.0929)}
+    for town, (lat, lon) in centers.items():
+        found = finder.nearest(lat, lon, "bus")
+        assert found and found[1] < 1200, town  # rough town-center coordinates
+    assert finder.nearest(40.8142, -74.1227, "rail")[0] == "Lyndhurst station"
 
 
 def test_failed_stop_lookup_is_reported():
@@ -376,3 +385,23 @@ def test_outdated_analysis_is_redone_from_scratch():
     assert llm.calls == 1
     assert out.features.garage.evidence == "MLS"  # provider fact kept
     assert out.features.basement_bathroom.state is FeatureState.PRESENT  # wrong v1 value replaced
+
+
+def test_property_rejected_by_outdated_analysis_gets_reanalyzed():
+    from app.models.analysis import LLMAnalysis
+    from app.models.property import Feature
+
+    sf = make_property(
+        property_type=PropertyType.SINGLE_FAMILY, units=1, description=DESC,
+        features=PropertyFeatures(garage=present(), laundry=present(), finished_basement=present(),
+                                  basement_bathroom=Feature(state=FeatureState.ABSENT, source=FeatureSource.DESCRIPTION, evidence="wrong")),
+        llm_analysis=LLMAnalysis(model="m", prompt_version="desc-v1"),
+    )
+    prefs = SearchPreferences()
+    ev = EvaluatedProperty(sf, apply_hard_filters(sf, prefs, TODAY))
+    assert ev.filter.status is FilterStatus.REJECTED
+    llm = FakeLLM()
+    run = DiscoveryRun(id="r", started_at=None, status="succeeded", results=[ev])
+    run_analysis(run, prefs, AnalysisDeps(llm=llm, llm_model="m", rentcast=None, stops=FakeStops(), rate=RATE, today=TODAY))
+    assert llm.calls == 1
+    assert run.results[0].filter.status is FilterStatus.ELIGIBLE

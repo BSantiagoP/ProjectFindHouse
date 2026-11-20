@@ -97,4 +97,4 @@ class CommuteEstimate(BaseModel):
     walk_meters: int | None = None
     walk_minutes: int | None = None
     total_minutes: int | None = None
-    source: str = "town_table+osm"
+    source: str = "town_table+njt_gtfs"

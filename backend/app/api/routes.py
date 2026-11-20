@@ -12,7 +12,7 @@ from app.repositories.base import PriceSnapshot, Repository, RepositoryError
 from app.repositories.factory import get_repository
 from app.agents.graph import AnalysisDeps, run_analysis
 from app.providers.rentcast import RentCastClient
-from app.services.commute import OverpassStopFinder
+from app.services.commute import GtfsStopFinder
 from app.services.description_analysis import OpenAIStructuredLLM
 from app.services.discovery import run_discovery
 from app.services.rates import current_rate
@@ -52,7 +52,7 @@ def build_analysis_deps(settings: Settings, repo: Repository, prefs: SearchPrefe
     )
     return AnalysisDeps(
         llm=llm, llm_model=settings.openai_model, rentcast=rentcast,
-        stops=OverpassStopFinder(), rate=current_rate(prefs.rate_override),
+        stops=GtfsStopFinder(), rate=current_rate(prefs.rate_override),
     )
 
 

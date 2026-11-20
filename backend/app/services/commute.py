@@ -1,14 +1,14 @@
 """Commute estimate until Google Routes is available.
 
-total = walk from the property to the nearest bus stop / rail station (OpenStreetMap)
+total = walk from the property to the nearest NY-bound bus stop / rail station (NJ Transit GTFS)
       + the town's researched stop-to-7-WTC time (editable in preferences).
 """
 
+import json
 import logging
 import math
+from pathlib import Path
 from typing import Protocol
-
-import httpx
 
 from app.models.analysis import CommuteEstimate
 from app.models.preferences import SearchPreferences
@@ -27,47 +27,27 @@ class StopFinder(Protocol):
         ...
 
 
-class OverpassStopFinder:
-    # Public Overpass servers are often busy (live run 2026-11-20: 502s and timeouts),
-    # so try mirrors in turn with a short pause between attempts.
-    URLS = (
-        "https://overpass-api.de/api/interpreter",
-        "https://overpass.kumi.systems/api/interpreter",
-        "https://overpass.private.coffee/api/interpreter",
-    )
+class GtfsStopFinder:
+    """Nearest NJ Transit stop from a prebuilt GTFS extract (scripts/build_transit_stops.py).
 
-    def __init__(self, client: httpx.Client | None = None, sleep=None) -> None:
-        import time
+    Bus: only stops served by New York-bound trips. Rail: stations. No network calls.
+    Replaced OpenStreetMap/Overpass after it failed repeatedly (502s/timeouts) on 2026-11-20.
+    """
 
-        self._client = client or httpx.Client(timeout=40, headers={"User-Agent": "HomeScout/0.1 (personal home search)"})
-        self._sleep = sleep or time.sleep
+    DEFAULT_PATH = Path(__file__).resolve().parents[1] / "data" / "transit_stops.json"
 
-    def _post(self, query: str) -> dict:
-        last: Exception | None = None
-        for attempt, url in enumerate(self.URLS):
-            try:
-                resp = self._client.post(url, data={"data": query})
-                resp.raise_for_status()
-                return resp.json()
-            except (httpx.HTTPError, ValueError) as exc:
-                last = exc
-                log.info("Overpass %s failed (%s), trying next", url, exc)
-                self._sleep(1 + attempt)
-        raise RuntimeError(f"All Overpass servers failed: {last}")
+    def __init__(self, path: Path = DEFAULT_PATH) -> None:
+        data = json.loads(path.read_text())
+        self._stops = {"bus": data["bus_ny_bound"], "rail": data["rail"]}
 
     def nearest(self, lat: float, lon: float, access: str) -> tuple[str, int] | None:
-        around = f"(around:{SEARCH_RADIUS_M},{lat},{lon})"
-        if access == "rail":
-            body = f'node{around}[railway~"^(station|halt)$"];'
-        else:
-            body = f"node{around}[highway=bus_stop];node{around}[public_transport=platform][bus=yes];"
-        query = f"[out:json][timeout:25];({body});out body;"
         best: tuple[str, int] | None = None
-        for el in self._post(query).get("elements", []):
-            d = haversine_m(lat, lon, el["lat"], el["lon"])
-            name = (el.get("tags") or {}).get("name") or "unnamed stop"
-            if best is None or d < best[1]:
-                best = (name, int(d))
+        for s in self._stops.get(access, []):
+            d = haversine_m(lat, lon, s["lat"], s["lon"])
+            if d <= SEARCH_RADIUS_M and (best is None or d < best[1]):
+                routes = s.get("routes")
+                label = f"{s['name']} (bus {', '.join(routes[:4])})" if routes else f"{s['name']} station"
+                best = (label, int(d))
         return best
 
 

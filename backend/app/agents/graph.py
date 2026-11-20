@@ -18,7 +18,8 @@ from app.models.preferences import SearchPreferences
 from app.models.property import PropertyType
 from app.providers.rentcast import RentCastClient
 from app.services.commute import StopFinder, estimate_commute
-from app.services.description_analysis import StructuredLLM, analyze_description
+from app.models.analysis import CommuteEstimate
+from app.services.description_analysis import PROMPT_VERSION, StructuredLLM, analyze_description, reset_text_features
 from app.services.discovery import DiscoveryRun, EvaluatedProperty
 from app.services.filtering import FilterStatus, apply_hard_filters
 from app.services.rates import MortgageRate
@@ -46,6 +47,14 @@ class State(TypedDict):
 
 def build_graph(deps: AnalysisDeps):
     def load_candidates(state: State) -> dict[str, Any]:
+        # A property may have been rejected using findings from an outdated analysis version
+        # (live run 2026-11-20: a wrong "no basement bathroom" rejected a single-family).
+        # Clear those findings and re-filter before choosing candidates.
+        for ev in state["run"].results:
+            la = ev.property.llm_analysis
+            if la is not None and la.prompt_version != PROMPT_VERSION:
+                ev.property = reset_text_features(ev.property)
+                ev.filter = apply_hard_filters(ev.property, state["prefs"], deps.today)
         keep = (FilterStatus.ELIGIBLE, FilterStatus.NEEDS_VERIFICATION)
         return {"candidates": [ev for ev in state["run"].results if ev.filter.status in keep]}
 
@@ -76,7 +85,8 @@ def build_graph(deps: AnalysisDeps):
         prefs, errors = state["prefs"], list(state["errors"])
         for ev in state["candidates"]:
             p = ev.property
-            if p.commute is None or p.commute.total_minutes is None:
+            current_source = CommuteEstimate.model_fields["source"].default
+            if p.commute is None or p.commute.total_minutes is None or p.commute.source != current_source:
                 p = p.model_copy(update={"commute": estimate_commute(p, prefs, deps.stops)})
                 if p.commute and (p.commute.nearest_stop or "").startswith("lookup failed"):
                     errors.append(f"Commute not estimated for {p.address.raw}: {p.commute.nearest_stop}")
