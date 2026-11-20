@@ -2,7 +2,8 @@ import re
 
 from app.models.property import Address
 
-_UNIT_RE = re.compile(r"\s*(?:,\s*)?\b(?:APT|UNIT|STE|SUITE|#)\s*#?\s*([A-Z0-9-]+)\s*$", re.I)
+# "#" is not a word character, so it cannot sit behind \b; keep it as its own alternative.
+_UNIT_RE = re.compile(r"\s*(?:,\s*)?(?:\b(?:APT|UNIT|STE|SUITE)\b\.?\s*#?|#)\s*([A-Z0-9-]+)\s*$", re.I)
 _STATE_ZIP_RE = re.compile(r"^\s*([A-Z]{2})\s*(\d{5})?(?:-\d{4})?\s*$", re.I)
 
 _SUFFIXES = {

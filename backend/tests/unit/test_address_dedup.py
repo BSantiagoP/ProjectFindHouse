@@ -60,3 +60,21 @@ def test_same_building_different_price_kept():
     a = make_property(external_id="1", price=500_000, address=Address(raw="x", street="12 Main St", unit="1", zip_code="07071"))
     b = make_property(external_id="2", price=520_000, address=Address(raw="y", street="12 Main St", unit="2", zip_code="07071"))
     assert len(deduplicate([a, b])) == 2
+
+
+def test_parse_hash_unit_from_live_data():
+    # Live listing 2026-11-20: unit given as "#2" was not recognized, creating a duplicate.
+    a = parse_address("188 N 6Th St #2, Saddle Brook Twp., NJ 07663")
+    assert a.street == "188 N 6Th St" and a.unit == "2"
+    assert parse_address("10 Main St Unit 3B, Lyndhurst, NJ 07071").unit == "3B"
+    assert parse_address("10 Main St Apt. 4, Lyndhurst, NJ 07071").unit == "4"
+    assert parse_address("10 Unity Ave, Lyndhurst, NJ 07071").unit is None
+
+
+def test_live_duplicate_pair_merges():
+    from app.services.address import parse_address as pa
+
+    a = make_property(external_id="2085266837", price=819_900, address=pa("188 N 6Th St #2, Saddle Brook Twp., NJ 07663"))
+    b = make_property(external_id="38027096", price=819_900, address=pa("188 N 6th St, Saddle Brook, NJ 07663"))
+    result = deduplicate([a, b])
+    assert [p.external_id for p in result] == ["38027096"]
