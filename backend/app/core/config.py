@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     hasdata_base_url: str = "https://api.hasdata.com"
     # HasData recommends a 300s client timeout because scrapes can be slow.
     hasdata_timeout_seconds: float = 300.0
-    max_requests_per_run: int = 15
+    max_requests_per_run: int = 25
     max_pages_per_town: int = 1
     fetch_details: bool = True
 

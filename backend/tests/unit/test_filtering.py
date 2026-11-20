@@ -101,3 +101,9 @@ def test_rejection_wins_over_unknowns(prefs):
     r = check(make_property(price=1_000_000, features=feats), prefs)
     assert r.status is FilterStatus.REJECTED
     assert "laundry" in r.unverified
+
+
+def test_townhouse_rejected(prefs):
+    # Confirmed by user 2026-11-20: townhouses are excluded, not treated as single-family.
+    r = check(make_property(property_type=PropertyType.TOWNHOUSE), prefs)
+    assert r.status is FilterStatus.REJECTED

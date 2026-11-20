@@ -14,7 +14,7 @@ HomeScout AI will search newly listed houses in selected New Jersey towns, prior
 | Setting | Initial value |
 |---|---|
 | Towns | Cliffside Park, Lyndhurst, Fairview, Elmwood Park, Saddle Brook, NJ |
-| Property type | Multifamily 2–4 units; single-family **only** with a fully finished basement that has a bathroom |
+| Property type | Multifamily 2–4 units; single-family **only** with a fully finished basement that has a bathroom; condos and townhouses excluded |
 | Maximum purchase price | **$900,000**; editable in app |
 | Parking | Required: garage or driveway (garage scores higher); street-only fails |
 | Laundry | **Required** (in-unit, in-building, or hookups) |
@@ -388,6 +388,7 @@ Five towns searched daily may require ~150 search calls in a 30-day month **befo
 | Schedule | Daily 8 AM Eastern (editable) |
 | Max properties | Five |
 | Max purchase price | $900,000 |
+| Townhouses | Excluded (confirmed 2026-11-20) |
 | Commute destination | 7 WTC, public transit |
 | Hosting | Railway + Vercel + Supabase |
 | Rent data | RentCast |
@@ -395,7 +396,9 @@ Five towns searched daily may require ~150 search calls in a 30-day month **befo
 | Financing | FHA 3.5% / conv 5% / conv 20%, FRED rate + override |
 | Price-drop alerts | Off (dashboard only) |
 | API keys and SMS recipients | **Provided as we go** |
-| Data licensing and provider quality | **Pending validation** |
+| Provider data quality | Live test 2026-11-20: 13 listings across 5 towns; 4/4 eligible spot-checked by user as accurate |
+| HasData plan | Free plan (1,000 credits/month) for now; upgrade when credits run out. A full daily run is ~18 requests (180 credits); ~8/day once seen listings skip detail calls |
+| Data licensing | **Pending validation** |
 | SMS registration | **Pending** |
 
 **Bottom line:** Build the provider-independent discovery and ranking engine first. Prove that HasData is accurate and permissible for this use before deploying it. Then connect the private dashboard and compliant three-recipient SMS delivery.
