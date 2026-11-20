@@ -23,11 +23,27 @@ def build_sender(settings: Settings):
     return TwilioSender(settings.twilio_account_sid, settings.twilio_auth_token, settings.twilio_messaging_service_sid)
 
 
-def main() -> int:
+def already_ran_today(repo) -> bool:
+    """True if a non-failed run already started today (America/New_York)."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    last = repo.latest_run()
+    if last is None:
+        return False
+    tz = ZoneInfo("America/New_York")
+    return last.started_at.astimezone(tz).date() == datetime.now(tz).date()
+
+
+def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)
     settings = get_settings()
     repo = get_repository()
+    if "--force" not in argv and already_ran_today(repo):
+        log.info("A search already ran today; skipping (use --force to run again)")
+        return 0
     prefs = repo.get_preferences()
     run = run_discovery(get_provider(settings), prefs, max_requests=settings.max_requests_per_run,
                         fetch_details=settings.fetch_details, known_lookup=repo.known_properties)

@@ -124,3 +124,16 @@ def test_digest_without_links():
     run = ranked_run(2)
     body = build_digest([ev for ev in run.results if ev.rank], include_links=False)
     assert "http" not in body and body.endswith(OPT_OUT_FOOTER)
+
+
+def test_daily_job_skips_if_already_ran_today():
+    from app.jobs.daily_search import already_ran_today
+
+    repo = MemoryRepository()
+    assert not already_ran_today(repo)
+    repo.save_run(ranked_run(1, "today"))
+    assert already_ran_today(repo)
+    old = ranked_run(1, "old")
+    old.started_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    repo2 = MemoryRepository(); repo2.save_run(old)
+    assert not already_ran_today(repo2)
