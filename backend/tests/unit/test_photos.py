@@ -148,3 +148,16 @@ def test_rule_change_reapplies_stored_findings_without_api_calls():
     again = analyze_photos(stale, v)
     assert len(v.calls) == 2  # no new calls
     assert again.photo_analysis.version != "photo-v1" and again.photo_analysis.likely
+
+
+def test_switching_photo_model_redoes_analysis_and_clears_old_findings():
+    f = findings(outdoor_space=PhotoFinding(state="present", photo_numbers=[5], confidence="high"))
+    mini = FakeVision(TRIAGE, f)
+    p = make_property(photo_urls=photos(30), features=PropertyFeatures(garage=present(), laundry=present()))
+    once = analyze_photos(p, mini)
+    assert once.features.outdoor_space.source is FeatureSource.PHOTOS
+    luna = FakeVision(TRIAGE, findings())
+    luna.model = "luna"
+    redone = analyze_photos(once, luna)
+    assert len(luna.calls) == 2 and redone.photo_analysis.model == "luna"
+    assert redone.features.outdoor_space.state is FeatureState.UNKNOWN  # old model's finding removed

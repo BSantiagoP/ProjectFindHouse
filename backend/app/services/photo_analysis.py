@@ -148,6 +148,10 @@ def _reset_photo_features(prop: Property) -> Property:
 
 def analyze_photos(prop: Property, llm: VisionLLM) -> Property:
     pa = prop.photo_analysis
+    if pa and pa.model != llm.model and pa.skipped_reason != "Nothing unknown":
+        # Different photo model: redo from scratch so no findings from the old model remain.
+        prop = _reset_photo_features(prop)
+        pa = None
     if pa and pa.version == PHOTO_VERSION:
         return prop
     if pa and pa.raw_findings is not None:

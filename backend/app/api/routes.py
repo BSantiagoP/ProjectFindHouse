@@ -51,7 +51,7 @@ def build_analysis_deps(settings: Settings, repo: Repository, prefs: SearchPrefe
                        monthly_cap=settings.rentcast_monthly_cap)
         if settings.rentcast_api_key else None
     )
-    vision = OpenAIVisionLLM(settings.openai_api_key, settings.openai_model) if settings.openai_api_key and settings.photo_analysis_enabled else None
+    vision = OpenAIVisionLLM(settings.openai_api_key, settings.openai_vision_model) if settings.openai_api_key and settings.photo_analysis_enabled else None
     return AnalysisDeps(
         llm=llm, llm_model=settings.openai_model, rentcast=rentcast, vision=vision,
         stops=GtfsStopFinder(), rate=current_rate(prefs.rate_override),

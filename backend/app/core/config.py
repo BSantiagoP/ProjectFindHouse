@@ -10,7 +10,8 @@ _ROOT = Path(__file__).resolve().parents[3]
 
 class Settings(BaseSettings):
     openai_api_key: str = ""
-    openai_model: str = "gpt-5.4-mini"
+    openai_model: str = "gpt-5.4-mini"  # listing text analysis
+    openai_vision_model: str = "gpt-5.6-luna"  # photo analysis (chosen 2026-11-20 after side-by-side test)
     rentcast_api_key: str = ""
     rentcast_monthly_cap: int = 45  # stays inside RentCast's 50 free requests/month
     analysis_enabled: bool = True
