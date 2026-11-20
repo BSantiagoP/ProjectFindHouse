@@ -126,14 +126,19 @@ def test_digest_without_links():
     assert "http" not in body and body.endswith(OPT_OUT_FOOTER)
 
 
-def test_daily_job_skips_if_already_ran_today():
-    from app.jobs.daily_search import already_ran_today
+def test_schedule_every_other_day_after_8am_eastern():
+    from zoneinfo import ZoneInfo
+    from app.jobs.daily_search import is_due
 
+    et = ZoneInfo("America/New_York")
     repo = MemoryRepository()
-    assert not already_ran_today(repo)
-    repo.save_run(ranked_run(1, "today"))
-    assert already_ran_today(repo)
-    old = ranked_run(1, "old")
-    old.started_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    repo2 = MemoryRepository(); repo2.save_run(old)
-    assert not already_ran_today(repo2)
+    assert is_due(repo, every_days=2, run_hour=8, now=datetime(2026, 11, 20, 9, tzinfo=et))[0]  # never ran
+    run = ranked_run(1, "mon")
+    run.started_at = datetime(2026, 11, 20, 8, 5, tzinfo=et)
+    repo.save_run(run)
+    due = lambda d, h: is_due(repo, every_days=2, run_hour=8, now=datetime(2026, 11, d, h, tzinfo=et))[0]
+    assert not due(20, 15)  # same day
+    assert not due(21, 9)   # next day
+    assert not due(22, 7)   # due day but before 8 AM
+    assert due(22, 8)       # due day at 8
+    assert due(23, 13)      # Mac was closed on the 22nd: catches up next time it is awake

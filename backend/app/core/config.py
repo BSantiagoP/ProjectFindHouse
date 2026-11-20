@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     twilio_phone_number: str = ""
     twilio_messaging_service_sid: str = ""  # service holding the verified A2P 10DLC campaign
     sms_enabled: bool = False  # sending requires explicit opt-in
+    run_every_days: int = 2  # every other day (decided 2026-11-20)
+    run_hour: int = 8  # Eastern; earliest hour a due run may start
     photo_analysis_enabled: bool = True
 
     # Repo-root .env first, backend/.env overrides it.

@@ -23,7 +23,7 @@ HomeScout AI will search newly listed houses in selected New Jersey towns, prior
 | Financing | Three scenarios side by side: FHA 3.5%, conventional 5%, conventional 20%; user picks the primary one for scoring |
 | Mortgage rate | Weekly Freddie Mac 30-yr average (FRED) + FHA spread, with manual override |
 | Listing recency | Past 7 days |
-| Search schedule | Daily at 8:00 AM America/New_York |
+| Search schedule | Every other day, from 8:00 AM Eastern; runs locally on the Mac (launchd hourly check catches up after sleep) |
 | Maximum recommendations | 5 per report; fewer if insufficient matches |
 | Notification recipients | 3 consenting phone numbers, configured securely |
 | Delivery | SMS summary with authenticated dashboard link |
@@ -104,7 +104,7 @@ These are working defaults and must be confirmed before production. Unknown prop
 | SMS | Twilio | Three-recipient digest and delivery receipts |
 | Testing | Pytest, HTTPX, mocks | Unit, contract, integration, evaluation, E2E |
 | Monitoring | Structured logs and alerts | Run failures, spend, and delivery problems |
-| Hosting | Railway (API + cron worker), Vercel (Next.js), Supabase | Deployment |
+| Hosting | Local Mac for now (launchd scheduler) + Supabase; Railway/Vercel deferred | Deployment |
 | Enrichment | RentCast (rent), Google Routes API (transit), FRED (rates), OpenAI vision (photos) | Analysis inputs |
 
 Start Twilio A2P 10DLC registration on Day 1 so it runs alongside the build; until it's approved, reports appear only in the dashboard. For US SMS, verify A2P 10DLC or other applicable sender-registration obligations, opt-in/opt-out handling, and current Twilio fees before enabling live delivery. Do not collect recipient phone numbers in source control.
@@ -385,12 +385,12 @@ Five towns searched daily may require ~150 search calls in a 30-day month **befo
 | Database | Supabase PostgreSQL |
 | Frontend | Next.js |
 | SMS | Twilio, three recipients |
-| Schedule | Daily 8 AM Eastern (editable) |
+| Schedule | Every other day from 8 AM Eastern, local Mac (decided 2026-11-20) |
 | Max properties | Five |
 | Max purchase price | $900,000 |
 | Townhouses | Excluded (confirmed 2026-11-20) |
 | Commute destination | 7 WTC, public transit |
-| Hosting | Railway + Vercel + Supabase |
+| Hosting | Local Mac + Supabase (Railway/Vercel deferred) |
 | Rent data | RentCast |
 | Photo analysis | MVP, limited |
 | Financing | FHA 3.5% / conv 5% / conv 20%, FRED rate + override |

@@ -1,7 +1,7 @@
-"""Daily job: discover -> analyze -> save -> SMS digest. Run: python -m app.jobs.daily_search
+"""Scheduled job: discover -> analyze -> save -> SMS digest. Run: python -m app.jobs.daily_search
 
-Scheduled at 8:00 AM America/New_York (Railway cron, later). Exit code 1 on failure so the
-scheduler can alert.
+launchd calls this hourly; it only runs when due (every RUN_EVERY_DAYS days, after RUN_HOUR
+Eastern). Exit code 1 on failure.
 """
 
 import logging
@@ -23,16 +23,27 @@ def build_sender(settings: Settings):
     return TwilioSender(settings.twilio_account_sid, settings.twilio_auth_token, settings.twilio_messaging_service_sid)
 
 
-def already_ran_today(repo) -> bool:
-    """True if a non-failed run already started today (America/New_York)."""
+TZ = "America/New_York"
+
+
+def is_due(repo, *, every_days: int, run_hour: int, now=None) -> tuple[bool, str]:
+    """Due when it's at/after run_hour (Eastern) and the last non-failed run was >= every_days
+    calendar days ago. Called hourly by launchd, so a Mac that was closed at run time
+    catches up within an hour of waking."""
     from datetime import datetime
     from zoneinfo import ZoneInfo
 
+    tz = ZoneInfo(TZ)
+    now = (now or datetime.now(tz)).astimezone(tz)
+    if now.hour < run_hour:
+        return False, f"before {run_hour}:00 Eastern"
     last = repo.latest_run()
     if last is None:
-        return False
-    tz = ZoneInfo("America/New_York")
-    return last.started_at.astimezone(tz).date() == datetime.now(tz).date()
+        return True, "no previous run"
+    days = (now.date() - last.started_at.astimezone(tz).date()).days
+    if days >= every_days:
+        return True, f"last run {days} day(s) ago"
+    return False, f"last run {days} day(s) ago; runs every {every_days} days"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -41,9 +52,12 @@ def main(argv: list[str] | None = None) -> int:
     logging.getLogger("httpx").setLevel(logging.WARNING)
     settings = get_settings()
     repo = get_repository()
-    if "--force" not in argv and already_ran_today(repo):
-        log.info("A search already ran today; skipping (use --force to run again)")
-        return 0
+    if "--force" not in argv:
+        due, why = is_due(repo, every_days=settings.run_every_days, run_hour=settings.run_hour)
+        if not due:
+            log.info("Not due (%s); skipping. Use --force to run now.", why)
+            return 0
+        log.info("Due (%s); running", why)
     prefs = repo.get_preferences()
     run = run_discovery(get_provider(settings), prefs, max_requests=settings.max_requests_per_run,
                         fetch_details=settings.fetch_details, known_lookup=repo.known_properties)
