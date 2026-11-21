@@ -50,6 +50,7 @@ class SmsSender(Protocol):
 
 class NotificationStore(Protocol):
     def sent_property_ids(self, recipient_key: str) -> set[str]: ...
+    def rejected_property_ids(self) -> set[str]: ...
     def is_opted_out(self, recipient_key: str) -> bool: ...
     def reserve_notification(self, run_id: str, recipient_key: str, last2: str, property_ids: list[str]) -> bool: ...
     def finish_notification(self, run_id: str, recipient_key: str, status: str, sid: str | None, error: str | None,
@@ -111,11 +112,12 @@ class DeliveryReport:
 def send_digest(run: DiscoveryRun, recipients: list[Recipient], store: NotificationStore, sender: SmsSender,
                 *, limit: int = 5, include_links: bool = True) -> list[DeliveryReport]:
     reports: list[DeliveryReport] = []
+    rejected = store.rejected_property_ids()  # rejected in the dashboard: never texted
     for r in recipients:
         if store.is_opted_out(r.key):
             reports.append(DeliveryReport(r.key, "opted_out"))
             continue
-        items = select_for_recipient(run, store.sent_property_ids(r.key), limit)
+        items = select_for_recipient(run, store.sent_property_ids(r.key) | rejected, limit)
         if not items:
             reports.append(DeliveryReport(r.key, "nothing_new"))
             continue

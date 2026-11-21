@@ -24,6 +24,7 @@ class MemoryRepository:
         self.notifications: dict[tuple[str, str], dict] = {}
         self.sent: dict[str, set[str]] = {}
         self.opted_out: set[str] = set()
+        self.rejected: set[str] = set()
 
     def known_properties(self, keys: list[ListingKey]) -> dict[ListingKey, Property]:
         return {k: self.properties[self.listings[k]] for k in keys if k in self.listings}
@@ -93,3 +94,6 @@ class MemoryRepository:
 
     def set_opted_out(self, recipient_key: str) -> None:
         self.opted_out.add(recipient_key)
+
+    def rejected_property_ids(self) -> set[str]:
+        return set(self.rejected)

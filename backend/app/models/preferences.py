@@ -26,7 +26,7 @@ class OwnerUnit(StrEnum):
 
 
 class TownCommute(BaseModel):
-    minutes: int  # stop/station -> 7 WTC, including transfers and typical waits
+    minutes: int = Field(ge=5, le=240)  # stop/station -> 7 WTC, including transfers and typical waits
     route: str
     access: str = "bus"  # "bus" -> walk to nearest bus stop; "rail" -> walk to nearest rail station
 
@@ -51,6 +51,7 @@ class ScoringWeights(BaseModel):
 class SearchPreferences(BaseModel):
     state: str = "NJ"
     towns: list[str] = Field(
+        min_length=1,
         default_factory=lambda: [
             "Cliffside Park",
             "Lyndhurst",
@@ -59,7 +60,7 @@ class SearchPreferences(BaseModel):
             "Saddle Brook",
         ]
     )
-    max_price: int = 900_000
+    max_price: int = Field(default=900_000, ge=100_000, le=5_000_000)
     listing_window_days: int = 7
     min_units: int = 2
     max_units: int = 4
@@ -92,4 +93,4 @@ class SearchPreferences(BaseModel):
     annual_maintenance_pct: float = 0.01
     fha_rate_adjustment: float = -0.0025  # FHA rate relative to the conventional 30-yr average
     # Monthly all-in housing cost (after rent) you'd be comfortable with; drives affordability.
-    target_monthly_cost: int | None = None
+    target_monthly_cost: int | None = Field(default=None, ge=500, le=50_000)

@@ -142,3 +142,19 @@ def test_schedule_every_other_day_after_8am_eastern():
     assert not due(22, 7)   # due day but before 8 AM
     assert due(22, 8)       # due day at 8
     assert due(23, 13)      # Mac was closed on the 22nd: catches up next time it is awake
+
+
+def test_rejected_in_dashboard_never_texted():
+    repo, sender = MemoryRepository(), FakeSender()
+    repo.rejected.add("pid1")
+    send_digest(ranked_run(3), [ME], repo, sender)
+    assert "$710,000" not in sender.sent[0][1] and sender.sent[0][1].startswith("HomeScout: 2 new matches")
+
+
+def test_preference_limits_enforced():
+    import pytest
+    from pydantic import ValidationError
+
+    for bad in ({"max_price": 50}, {"target_monthly_cost": 10}, {"towns": []}):
+        with pytest.raises(ValidationError):
+            SearchPreferences(**bad)

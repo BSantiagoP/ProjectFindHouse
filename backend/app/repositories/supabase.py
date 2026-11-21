@@ -260,3 +260,7 @@ class SupabaseRepository:
     def set_opted_out(self, recipient_key: str) -> None:
         self._upsert("recipient_status", [{"recipient_key": recipient_key, "opted_out": True,
                                            "updated_at": datetime.now(timezone.utc).isoformat()}], "recipient_key")
+
+    def rejected_property_ids(self) -> set[str]:
+        rows = self._req("GET", "property_feedback", params={"rejected": "eq.true", "select": "property_id"})
+        return {r["property_id"] for r in rows}
