@@ -51,8 +51,9 @@ class FakeLLM:
         return self.choices[min(self.calls - 1, len(self.choices) - 1)]
 
 
-def choice(o="comparables_bajo", t="comparables_mediana", w="lista_menos_5", **kw):
-    return OfferChoice(opening_key=o, target_key=t, walk_away_key=w,
+def choice(o="comparables_bajo", t="comparables_mediana", w="lista_menos_5", win="precio_lista", **kw):
+    return OfferChoice(opening_key=o, target_key=t, walk_away_key=w, win_key=win,
+                       win_reason="Lleva pocos días en el mercado y la lista es $850,000.",
                        rationale=["La mediana de comparables es $780,000."], risks=["Confirmar con un agente."], **kw)
 
 
@@ -98,7 +99,7 @@ def test_out_of_order_choice_is_sorted_not_discarded():
 
 def test_invalid_keys_or_numbers_are_rejected_then_retried():
     invented = OfferChoice(opening_key="comparables_bajo", target_key="comparables_mediana", walk_away_key="lista_menos_5",
-                           rationale=["Ofrece $123,456."], risks=[])
+                           win_key="precio_lista", win_reason="Ok.", rationale=["Ofrece $123,456."], risks=[])
     o = suggest_offer(ev(), PREFS, RATE, SOLD, FakeLLM(invented, invented), model="m")
     assert o.status == "error" and o.opening is None
     unknown = choice(o="precio_inventado")
@@ -146,3 +147,14 @@ def test_facts_list_candidates_sorted_and_explain_missing_max():
     prices = [int(c["precio"].strip("$").replace(",", "")) for c in f["precios_candidatos"]]
     assert prices == sorted(prices)
     assert f["casa"]["precio_maximo_para_meta_mensual"].startswith("no calculable")
+
+
+def test_price_to_win_with_monthly_cost_and_budget_flag():
+    from app.services.offer import monthly_cost_at
+
+    o = suggest_offer(ev(), PREFS, RATE, SOLD, FakeLLM(choice(win="lista_mas_3")), model="m")
+    assert o.win_price == 876_000 and o.win_key == "lista_mas_3"
+    assert o.win_monthly_cost == monthly_cost_at(subject(), PREFS, RATE, 876_000)
+    assert o.win_over_budget is True  # above the max price for $4,000/month
+    bad = choice(win="ganar_a_toda_costa")
+    assert suggest_offer(ev(), PREFS, RATE, SOLD, FakeLLM(bad, bad), model="m").status == "error"

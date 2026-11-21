@@ -151,6 +151,13 @@ bottom of the page to restore one.
   - the comparables' 25th percentile, median and 75th percentile;
   - **your maximum price**: the highest price that keeps "pagas al mes" at your monthly target,
     with the scoring loan (conventional 20%), the current tax bill and the estimated rent.
+- **"Para ganarla" (price likely to win):** a fourth price chosen from the same list (which also
+  includes list +3% / +5%) for winning the house **regardless of your budget**. It considers days
+  on market and the higher comparable sales. The page shows what you'd pay per month at that price,
+  and flags it when it's above your maximum.
+  **Limit:** Zillow's sold records don't include the original list price, so we can't measure how
+  far over asking homes really sell here or how many offers there are. Treat it as an informed
+  estimate and ask your agent how competitive the house is.
 - **The AI only chooses** the opening, target and walk-away from that list, and explains why.
   The code rejects any price not on the list or any invented number (one retry). If its three
   choices are out of order, they're sorted low → high and the box notes it.
@@ -260,6 +267,6 @@ very little of that.
 
 ## How it's tested
 
-- 178 automated tests cover every rule above.
+- 179 automated tests cover every rule above.
 - Tests block all real network calls.
 - Real-data checks were run and the bugs they found were fixed. See the git history for details.

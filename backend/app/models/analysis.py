@@ -232,6 +232,8 @@ class OfferChoice(BaseModel):
     opening_key: str = Field(description="Clave de la lista 'precios_candidatos' para la oferta inicial")
     target_key: str = Field(description="Clave para el precio objetivo")
     walk_away_key: str = Field(description="Clave para el precio máximo (retirarse si se supera)")
+    win_key: str = Field(description="Clave del precio que probablemente GANE la casa en este mercado, aunque supere el presupuesto")
+    win_reason: str = Field(description="Una oración en español explicando por qué ese precio probablemente gane")
     rationale: list[str] = Field(description="2-4 razones en español, basadas solo en los datos")
     risks: list[str] = Field(description="1-3 riesgos o advertencias en español")
 
@@ -253,6 +255,12 @@ class OfferAnalysis(BaseModel):
     rationale: list[str] = Field(default_factory=list)
     risks: list[str] = Field(default_factory=list)
     order_adjusted: bool = False  # the three chosen prices were re-sorted low -> high by the code
+    # Price likely to win the house regardless of your budget (judgment from comps + days listed).
+    win_price: int | None = None
+    win_key: str | None = None
+    win_reason: str | None = None
+    win_monthly_cost: int | None = None  # what you'd pay per month at win_price (scoring loan, after rent)
+    win_over_budget: bool | None = None  # win_price above your max price for the monthly target
     status: Literal["ok", "not_enough_comps", "error"] = "ok"
     reason: str | None = None
     model: str | None = None

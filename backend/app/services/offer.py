@@ -23,7 +23,7 @@ from app.services.scoring import CONDITION_ES, scenarios_for
 
 log = logging.getLogger(__name__)
 
-PROMPT_VERSION = "offer-v2"  # v2: sorted candidates, explicit max-price note, Spanish condition
+PROMPT_VERSION = "offer-v3"  # v3: adds price likely to win (may exceed budget)
 MAX_DISTANCE_MI = 1.5
 MAX_DAYS_SINCE_SOLD = 365
 MIN_COMPS = 3
@@ -39,6 +39,9 @@ Reglas:
   en el mercado y el precio máximo que mantiene la meta mensual del usuario.
 - Si el precio máximo para la meta mensual está por debajo de las ventas comparables, dilo claramente.
 - Escribe 'rationale' y 'risks' en español. Si mencionas cifras, cópialas exactamente del JSON.
+- win_key: elige el precio que probablemente GANE la casa en este mercado, AUNQUE supere el presupuesto
+  o el precio máximo para la meta mensual. Pocos días en el mercado y comparables altos indican más
+  competencia. Explícalo en win_reason (una oración, cifras copiadas del JSON).
 - No inventes datos del mercado ni de la casa. Recomienda confirmar con un agente local."""
 
 
@@ -87,6 +90,18 @@ def _round_k(x: float) -> int:
     return int(round(x / 1000.0) * 1000)
 
 
+def monthly_cost_at(prop: Property, prefs: SearchPreferences, rate: MortgageRate, price: int) -> int | None:
+    """What you'd pay per month at `price` with the scoring loan (after rent when estimated)."""
+    _, rates = scenarios_for(rate, prefs)
+    scenario = next(s for s in DEFAULT_SCENARIOS if s.name == prefs.primary_scenario)
+    rent_ok = bool(prop.rent_estimate and prop.rent_estimate.status == "estimated")
+    r = evaluate_scenario(CostInputs(
+        price=price, annual_rate=rates[scenario.name], annual_tax=prop.annual_tax or 0,
+        annual_insurance=prefs.annual_insurance, annual_maintenance_pct=prefs.annual_maintenance_pct,
+        monthly_gross_rent=(prop.rent_estimate.monthly_rent_total or 0) if rent_ok else 0), scenario)
+    return round(r.effective_owner_cost)
+
+
 def max_affordable_price(prop: Property, prefs: SearchPreferences, rate: MortgageRate) -> int | None:
     """Highest price whose monthly cost after rent (primary loan) stays at/below the target.
     Keeps the current tax bill, insurance and rent; maintenance scales with price."""
@@ -129,6 +144,8 @@ def build_candidates(prop: Property, comps: list[SoldComp], max_price: int | Non
     add("precio_lista", prop.price, "Precio de lista")
     for pct in (3, 5, 8):
         add(f"lista_menos_{pct}", prop.price * (1 - pct / 100) if prop.price else None, f"Lista −{pct}%")
+    for pct in (3, 5):  # homes here can sell over asking; needed for the "price likely to win"
+        add(f"lista_mas_{pct}", prop.price * (1 + pct / 100) if prop.price else None, f"Lista +{pct}%")
     if len(prices) >= MIN_COMPS:
         q = statistics.quantiles(prices, n=4)
         add("comparables_bajo", q[0], "Comparables: rango bajo (25%)")
@@ -192,8 +209,8 @@ def suggest_offer(ev: EvaluatedProperty, prefs: SearchPreferences, rate: Mortgag
     for attempt in range(2):
         choice = llm.parse_offer(instructions=INSTRUCTIONS, text=text)
         keys = [choice.opening_key, choice.target_key, choice.walk_away_key]
-        keys_ok = all(k in cand for k in keys)
-        bad_numbers = ungrounded_numbers(_AsSummary(choice.rationale + choice.risks), facts) if keys_ok else []
+        keys_ok = all(k in cand for k in keys) and choice.win_key in cand
+        bad_numbers = ungrounded_numbers(_AsSummary(choice.rationale + choice.risks + [choice.win_reason]), facts) if keys_ok else []
         if keys_ok and not bad_numbers:
             # Prices come only from the computed list; if the chosen three are out of order,
             # sort them (lowest = opening, highest = walk-away) rather than discard the answer.
@@ -202,6 +219,9 @@ def suggest_offer(ev: EvaluatedProperty, prefs: SearchPreferences, rate: Mortgag
                 **base, opening=cand[ordered[0]], target=cand[ordered[1]], walk_away=cand[ordered[2]],
                 opening_key=ordered[0], target_key=ordered[1], walk_away_key=ordered[2],
                 rationale=choice.rationale, risks=choice.risks, order_adjusted=ordered != keys, model=model, facts_hash=h,
+                win_price=cand[choice.win_key], win_key=choice.win_key, win_reason=choice.win_reason,
+                win_monthly_cost=monthly_cost_at(prop, prefs, rate, cand[choice.win_key]),
+                win_over_budget=(cand[choice.win_key] > max_price) if max_price is not None else None,
             )
         problem = ("claves inexistentes" if not keys_ok else f"cifras que no están en el JSON: {', '.join(bad_numbers)}")
         log.info("Offer for %s rejected (%s), attempt %d", prop.address.raw, problem, attempt + 1)

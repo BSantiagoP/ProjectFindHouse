@@ -91,6 +91,11 @@ export interface Property {
     opening_key: string | null;
     target_key: string | null;
     walk_away_key: string | null;
+    win_price?: number | null;
+    win_key?: string | null;
+    win_reason?: string | null;
+    win_monthly_cost?: number | null;
+    win_over_budget?: boolean | null;
     candidate_labels: Record<string, string>;
     comps_median: number | null;
     comps_low: number | null;

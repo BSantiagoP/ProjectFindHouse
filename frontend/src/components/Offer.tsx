@@ -32,6 +32,28 @@ export function OfferBox({ offer, listPrice }: { offer: Offer; listPrice: number
           </div>
         ))}
       </div>
+      {offer.win_price != null && (
+        <div className="mt-3 rounded-lg border border-amber-400 bg-amber-50 p-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-sm font-semibold text-amber-900">Para ganarla (precio competitivo)</p>
+            <p className="text-xl font-semibold text-amber-900">{usd(offer.win_price)}</p>
+          </div>
+          <p className="text-xs text-amber-900">
+            {label(offer.win_key ?? null)} {vsList(offer.win_price) && `· ${vsList(offer.win_price)}`}
+            {offer.win_monthly_cost != null && ` · pagarías ~${usd(offer.win_monthly_cost)}/mes`}
+          </p>
+          {offer.win_over_budget && (
+            <p className="mt-1 text-xs font-medium text-red-700">
+              Supera tu precio máximo para la meta mensual ({usd(offer.max_affordable_price)}).
+            </p>
+          )}
+          {offer.win_reason && <p className="mt-1 text-sm text-amber-950">{offer.win_reason}</p>}
+          <p className="mt-1 text-xs text-amber-800">
+            Estimación basada en comparables y días en el mercado; no sabemos cuántas ofertas hay ni a cuánto sobre la
+            lista se venden las casas aquí. Pregúntale a tu agente.
+          </p>
+        </div>
+      )}
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
         <dt className="text-stone-500">Ventas comparables (rango)</dt>
         <dd>{usd(offer.comps_low)} – {usd(offer.comps_high)} (mediana {usd(offer.comps_median)})</dd>

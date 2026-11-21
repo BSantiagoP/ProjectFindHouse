@@ -57,6 +57,12 @@ export function PropertyCard({ r, feedback }: { r: RunResult; feedback?: Feedbac
               <>
                 <dt className="text-stone-500">Oferta sugerida</dt>
                 <dd className="font-semibold text-emerald-700">{usd(p.offer.target)}</dd>
+                {p.offer.win_price != null && (
+                  <>
+                    <dt className="text-stone-500">Para ganarla</dt>
+                    <dd className="font-semibold text-amber-700">{usd(p.offer.win_price)}</dd>
+                  </>
+                )}
               </>
             )}
             {p.drives?.filter((d) => d.minutes != null).map((d) => (
