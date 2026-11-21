@@ -4,6 +4,12 @@ import { FeedbackButtons } from "@/components/FeedbackButtons";
 import { ScoreBadge } from "@/components/Score";
 import { VerdictBadge } from "@/components/Verdict";
 import { usd } from "@/lib/format";
+
+const SCENARIO_SHORT: Record<string, string> = {
+  fha_3_5: "FHA 3.5% de enganche",
+  conventional_5: "Convencional 5% de enganche",
+  conventional_20: "Convencional 20% de enganche",
+};
 import type { Feedback, RunResult } from "@/lib/types";
 
 export function PropertyCard({ r, feedback }: { r: RunResult; feedback?: Feedback }) {
@@ -36,13 +42,14 @@ export function PropertyCard({ r, feedback }: { r: RunResult; feedback?: Feedbac
           <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-stone-700">
             {primary && (
               <>
-                <dt className="text-stone-500">{rentKnown ? "Mensual después de renta" : "Mensual (sin renta est.)"}</dt>
-                <dd>{usd(rentKnown ? primary.effective_owner_cost : primary.monthly_housing_cost)}</dd>
-              </>
-            )}
-            {primary && (
-              <>
-                <dt className="text-stone-500">Tasa ({a!.primary_scenario === "fha_3_5" ? "FHA" : "conv."})</dt>
+                <dt className="col-span-2 mt-1 text-xs font-medium uppercase tracking-wide text-stone-500">
+                  {SCENARIO_SHORT[a!.primary_scenario] ?? a!.primary_scenario}
+                </dt>
+                <dt className="text-stone-500">{rentKnown ? "Pagas al mes (tras renta)" : "Pagas al mes (sin renta est.)"}</dt>
+                <dd className="font-semibold">{usd(rentKnown ? primary.effective_owner_cost : primary.monthly_housing_cost)}</dd>
+                <dt className="text-stone-500">Enganche</dt>
+                <dd>{usd(primary.down_payment)}</dd>
+                <dt className="text-stone-500">Tasa de interés</dt>
                 <dd>{((primary.annual_rate ?? a!.rate) * 100).toFixed(2)}%</dd>
               </>
             )}

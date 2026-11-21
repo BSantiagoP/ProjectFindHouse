@@ -78,7 +78,7 @@ class SearchPreferences(BaseModel):
             ),
         ]
     )
-    primary_scenario: FinanceScenarioName = FinanceScenarioName.FHA_3_5
+    primary_scenario: FinanceScenarioName = FinanceScenarioName.CONVENTIONAL_20  # changed from FHA 2026-11-20
     # None means use the weekly FRED rate (later milestone).
     rate_override: float | None = None
     preference_keywords: list[str] = Field(

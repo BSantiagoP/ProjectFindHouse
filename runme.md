@@ -67,6 +67,9 @@ Every feature shows **where it came from**:
 
 ## Financing (3 scenarios)
 
+All three are shown on each report. **The score and the cards use conventional 20% down**:
+20% down payment, no mortgage insurance, the weekly Freddie Mac rate.
+
 All math is plain formulas in code (no AI): standard 30-year amortization, checked in tests
 against hand calculations ($100,000 at 6% = $599.55/month).
 
@@ -130,7 +133,8 @@ bottom of the page to restore one.
 - **Weights:** Asequibilidad 30%, Ubicación y trayecto 25%, Estado 20%, Potencial de renta 15%,
   Preferencias 10%.
 - **Deterministic:** the same data always gives the same score. Each category shows its reason.
-- **Asequibilidad compares "pagas al mes" to your monthly target.** Rent is deducted for multifamily
+- **Asequibilidad compares "pagas al mes" to your monthly target, using the conventional loan with
+  20% down** (changed from FHA on 2026-11-20; editable in Preferencias). Rent is deducted for multifamily
   homes.
 - **Missing data counts as 0,** so a home can't rank high on unknowns. The "% datos" badge shows
   how much of the score is backed by real data.
