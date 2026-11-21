@@ -23,7 +23,7 @@ HomeScout AI will search newly listed houses in selected New Jersey towns, prior
 | Financing | Three scenarios side by side: FHA 3.5%, conventional 5%, conventional 20%; user picks the primary one for scoring |
 | Mortgage rate | Weekly Freddie Mac 30-yr average (FRED) + FHA spread, with manual override |
 | Listing recency | Past 7 days |
-| Search schedule | Every other day, from 8:00 AM Eastern; runs locally on the Mac (launchd hourly check catches up after sleep) |
+| Search schedule | Manual for now (see runme.md → Running HomeScout); Railway cron planned; job keeps an every-other-day rule |
 | Maximum recommendations | 5 per report; fewer if insufficient matches |
 | Notification recipients | 3 consenting phone numbers, configured securely |
 | Delivery | Dashboard only (https://homescout-delta.vercel.app); SMS turned off 2026-11-20, code kept (SMS_ENABLED=false) |
@@ -385,7 +385,7 @@ Five towns searched daily may require ~150 search calls in a 30-day month **befo
 | Database | Supabase PostgreSQL |
 | Frontend | Next.js |
 | SMS | Off by choice (2026-11-20); Twilio A2P verified, can be re-enabled with SMS_ENABLED=true |
-| Schedule | Every other day from 8 AM Eastern, local Mac (decided 2026-11-20) |
+| Schedule | Manual runs for now; Railway cron later (decided 2026-11-20) |
 | Max properties | Five |
 | Max purchase price | $900,000 |
 | Townhouses | Excluded (confirmed 2026-11-20) |

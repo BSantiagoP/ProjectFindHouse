@@ -144,6 +144,76 @@ bottom of the page to restore one.
 
 ---
 
+## Running HomeScout
+
+### Run it manually (current setup)
+
+There is **no automatic schedule right now**; you start each search yourself. From Terminal:
+
+```bash
+cd ~/Projects/FindingAHouse/backend
+poetry run python -m app.jobs.daily_search --force
+```
+
+- `--force` runs now. Without it, the job only runs if the last search was 2 or more days ago
+  and it's after 8 AM Eastern.
+- It takes about 1–3 minutes and prints progress in the terminal. The last line shows the result,
+  e.g. `Run … succeeded {'eligible': 6, …}`.
+- When it finishes, refresh **https://homescout-delta.vercel.app** to see new homes ("Nueva").
+- **Cost per run:** about 50 HasData credits for the 5 town searches, plus 10 per new listing.
+  New listings also use a few cents of OpenAI and possibly RentCast lookups (capped at 45 a month).
+  Driving times are free. Re-running on the same day mostly re-uses saved results.
+- **Texts are off** (`SMS_ENABLED=false`), so nothing is sent.
+
+### Turn the schedule on your Mac back on (optional)
+
+Every other day from 8 AM, catching up when the Mac wakes:
+
+```bash
+cp ~/Projects/FindingAHouse/backend/scripts/launchd/com.homescout.daily.plist ~/Library/LaunchAgents/
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.homescout.daily.plist
+```
+
+The log is at `~/Library/Logs/HomeScout/daily.log`. To turn it off again:
+
+```bash
+launchctl bootout gui/$(id -u)/com.homescout.daily
+rm ~/Library/LaunchAgents/com.homescout.daily.plist
+```
+
+### Move the scheduled search to Railway (when you decide)
+
+Railway runs the same job in the cloud, so your Mac doesn't need to be on. The dashboard stays on
+Vercel and the data stays in Supabase; only the search job moves.
+
+1. **Create a Railway account** at railway.app and a new project, then **deploy from the GitHub repo**
+   `BSantiagoP/ProjectFindHouse`.
+2. In the service's **Settings**:
+   - **Root directory:** `backend`
+   - **Start command:** `python -m app.jobs.daily_search`
+   - **Cron schedule:** `0 13 * * *`. Railway cron uses **UTC**: 13:00 UTC is 8 AM Eastern in
+     winter and 9 AM in summer. The job runs daily but only searches every other day, by its own rule.
+   - Railway detects Python from `pyproject.toml` / `poetry.lock`. The job needs **Python 3.12**; if
+     the build picks another version, set the Python version in the service settings.
+3. In the service's **Variables**, add the same values as your local `.env` (copy them from `.env`;
+   never commit them):
+   - `PROVIDER=hasdata`, `HASDATA_API_KEY`
+   - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+   - `OPENAI_API_KEY` (optional: `OPENAI_MODEL`, `OPENAI_VISION_MODEL`)
+   - `RENTCAST_API_KEY`, `LOCATIONIQ_API_KEY`
+   - `MAX_REQUESTS_PER_RUN=25`, `MAX_PAGES_PER_TOWN=1`, `FETCH_DETAILS=true`
+   - `SMS_ENABLED=false`, `DASHBOARD_URL=https://homescout-delta.vercel.app`
+   - Not needed on Railway: `API_TOKEN` (only for the local API) and the `RECIPIENT*` / `TWILIO_*` values.
+4. **Test once:** in Railway, run the service manually and check its logs for `Run … succeeded`.
+   Then check the dashboard.
+5. **Avoid double runs:** keep the Mac schedule off, as it is now, once Railway is running.
+   Both would spend HasData credits.
+
+Railway's hobby plan costs about $5/month. A cron job that runs a few minutes every other day uses
+very little of that.
+
+---
+
 ## What you should still verify yourself
 
 1. **Get a lender quote:** the real rate, FHA vs. conventional, PMI or MIP, and closing costs.

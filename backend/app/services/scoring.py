@@ -116,8 +116,9 @@ def score_property(prop: Property, prefs: SearchPreferences, rate: MortgageRate)
         cats.append(CategoryScore(name="affordability", weight=w.affordability, score=round(s, 1),
                                   reason=f"${prop.price:,} vs. máximo de ${prefs.max_price:,} (define una meta mensual para una mejor medida)"))
 
-    # Location & commute: average of each destination's sub-score (decided 2026-11-20: equal weight).
-    # Transit to 7 WTC: 40 min -> 10, 90 min -> 0. Driving (free-flow): 5 min -> 10, 35 min -> 0.
+    # Location: average of each configured destination's sub-score. Currently one destination:
+    # driving to 576 Bergen Blvd, Ridgefield (free-flow): 5 min -> 10, 35 min -> 0.
+    # Transit destinations (40 min -> 10, 90 min -> 0) are supported if one is added back.
     # A destination that couldn't be estimated counts as 0 (never rewarded).
     parts: list[tuple[float | None, str]] = []
     c = prop.commute
