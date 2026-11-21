@@ -139,6 +139,29 @@ bottom of the page to restore one.
 - **Missing data counts as 0,** so a home can't rank high on unknowns. The "% datos" badge shows
   how much of the score is backed by real data.
 
+## Oferta sugerida (suggested offer, top 5 only)
+
+- **Sold comparables:** real recent sales from Zillow (HasData "sold" search, one per town,
+  10 credits, reused for 7 days). Same building listed whole and per unit is merged.
+- **Comparables used:** sold within **1.5 miles**, about the **last 12 months**, with a bedroom
+  count within ±2 of the home. At least 3 are required, otherwise it shows "not enough comparables"
+  instead of guessing.
+- **Every price is computed by the code:**
+  - list price, and list price −3% / −5% / −8%;
+  - the comparables' 25th percentile, median and 75th percentile;
+  - **your maximum price**: the highest price that keeps "pagas al mes" at your monthly target,
+    with the scoring loan (conventional 20%), the current tax bill and the estimated rent.
+- **The AI only chooses** the opening, target and walk-away from that list, and explains why.
+  The code rejects any price not on the list or any invented number (one retry). If its three
+  choices are out of order, they're sorted low → high and the box notes it.
+- **Limits:**
+  - Zillow doesn't give the sale date for sold homes; "sold ~N days ago" is approximate.
+  - Square footage is usually missing, so comparables are matched by beds, baths and distance,
+    not price per square foot.
+  - Condition, renovations and multi-offer competition aren't captured.
+  - **This is guidance for talking with your agent, not an appraisal.** Ask them for a CMA
+    (comparative market analysis) before making an offer.
+
 ## Resumen del agente (AI summary)
 
 - **Written last,** after filtering, enrichment and scoring, from a compact list of **already
@@ -237,6 +260,6 @@ very little of that.
 
 ## How it's tested
 
-- 168 automated tests cover every rule above.
+- 178 automated tests cover every rule above.
 - Tests block all real network calls.
 - Real-data checks were run and the bugs they found were fixed. See the git history for details.

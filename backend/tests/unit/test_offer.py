@@ -89,10 +89,14 @@ def test_offer_uses_model_choice_among_computed_prices():
     assert len(o.comps) == 4
 
 
-def test_invalid_keys_order_or_numbers_are_rejected_then_retried():
-    bad_order = choice(o="precio_lista", t="comparables_bajo", w="lista_menos_8")
-    llm = FakeLLM(bad_order, choice())
-    assert suggest_offer(ev(), PREFS, RATE, SOLD, llm, model="m").status == "ok" and llm.calls == 2
+def test_out_of_order_choice_is_sorted_not_discarded():
+    o = suggest_offer(ev(), PREFS, RATE, SOLD, FakeLLM(choice(o="precio_lista", t="comparables_bajo", w="lista_menos_8")), model="m")
+    assert o.status == "ok" and o.order_adjusted
+    assert o.opening <= o.target <= o.walk_away
+    assert (o.opening_key, o.walk_away_key) == ("comparables_bajo", "precio_lista")
+
+
+def test_invalid_keys_or_numbers_are_rejected_then_retried():
     invented = OfferChoice(opening_key="comparables_bajo", target_key="comparables_mediana", walk_away_key="lista_menos_5",
                            rationale=["Ofrece $123,456."], risks=[])
     o = suggest_offer(ev(), PREFS, RATE, SOLD, FakeLLM(invented, invented), model="m")
@@ -130,3 +134,15 @@ def test_sold_comps_cached_per_town_for_a_week():
     first = svc.get("Fairview", "NJ", "multiFamily")
     svc.get("Fairview", "NJ", "multiFamily")
     assert calls == ["sold"] and len(first) == 1  # unit duplicate merged; second call cached
+
+
+def test_facts_list_candidates_sorted_and_explain_missing_max():
+    from app.services.offer import build_offer_facts
+
+    e = ev(subject(rent_estimate=None))
+    comps = select_comps(e.property, SOLD)
+    cand, labels = build_candidates(e.property, comps, None)
+    f = build_offer_facts(e, PREFS, comps, cand, labels)
+    prices = [int(c["precio"].strip("$").replace(",", "")) for c in f["precios_candidatos"]]
+    assert prices == sorted(prices)
+    assert f["casa"]["precio_maximo_para_meta_mensual"].startswith("no calculable")

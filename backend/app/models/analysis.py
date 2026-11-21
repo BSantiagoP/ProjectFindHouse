@@ -252,6 +252,7 @@ class OfferAnalysis(BaseModel):
     walk_away_key: str | None = None
     rationale: list[str] = Field(default_factory=list)
     risks: list[str] = Field(default_factory=list)
+    order_adjusted: bool = False  # the three chosen prices were re-sorted low -> high by the code
     status: Literal["ok", "not_enough_comps", "error"] = "ok"
     reason: str | None = None
     model: str | None = None
