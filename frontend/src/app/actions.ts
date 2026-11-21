@@ -7,7 +7,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 
 const FeedbackInput = z.object({
-  propertyId: z.string().uuid(),
+  propertyId: z.uuid(),
   verdict: z.enum(["liked", "rejected", "none"]),
 });
 
