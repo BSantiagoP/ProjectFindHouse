@@ -1,9 +1,10 @@
+import { FinanceTable } from "@/components/FinanceTable";
 import { usd } from "@/lib/format";
-import type { Property } from "@/lib/types";
+import type { Property, ScenarioResult } from "@/lib/types";
 
 type Offer = NonNullable<Property["offer"]>;
 
-export function OfferBox({ offer, listPrice }: { offer: Offer; listPrice: number | null }) {
+export function OfferBox({ offer, listPrice, primary, rate }: { offer: Offer; listPrice: number | null; primary: string; rate: number }) {
   if (offer.status !== "ok") {
     return (
       <section className="rounded-xl border bg-white p-4 shadow-sm">
@@ -48,6 +49,20 @@ export function OfferBox({ offer, listPrice }: { offer: Offer; listPrice: number
             </p>
           )}
           {offer.win_reason && <p className="mt-1 text-sm text-amber-950">{offer.win_reason}</p>}
+          {offer.win_finance && (
+            <details className="mt-2 rounded-md bg-white p-2">
+              <summary className="cursor-pointer text-sm font-medium text-amber-900">
+                Ver finanzas a {usd(offer.win_price)}
+              </summary>
+              <div className="mt-2">
+                <FinanceTable
+                  scenarios={Object.values(offer.win_finance) as ScenarioResult[]}
+                  primary={primary}
+                  fallbackRate={rate}
+                />
+              </div>
+            </details>
+          )}
           <p className="mt-1 text-xs text-amber-800">
             Estimación basada en comparables y días en el mercado; no sabemos cuántas ofertas hay ni a cuánto sobre la
             lista se venden las casas aquí. Pregúntale a tu agente.

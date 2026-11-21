@@ -4,9 +4,10 @@ import { notFound } from "next/navigation";
 import { FeedbackButtons } from "@/components/FeedbackButtons";
 import { CategoryBar, ScoreBadge } from "@/components/Score";
 import { AgentSummaryBox } from "@/components/Verdict";
+import { FinanceTable } from "@/components/FinanceTable";
 import { OfferBox } from "@/components/Offer";
 import { getFeedbackMap, getLatestRun, getPriceHistory } from "@/lib/data";
-import { FEATURE_LABELS, SCENARIO_LABELS, SOURCE_LABELS, STATUS_LABELS, humanize, pct, shortDate, usd } from "@/lib/format";
+import { FEATURE_LABELS, SOURCE_LABELS, STATUS_LABELS, humanize, shortDate, usd } from "@/lib/format";
 import type { FeatureName } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -70,7 +71,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
 
       {p.agent_summary && <AgentSummaryBox summary={p.agent_summary} />}
 
-      {p.offer && <OfferBox offer={p.offer} listPrice={p.price} />}
+      {p.offer && <OfferBox offer={p.offer} listPrice={p.price} primary={a?.primary_scenario ?? "conventional_20"} rate={a?.rate ?? 0} />}
 
       {p.photo_urls.length > 0 && (
         <section className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-2">
@@ -104,48 +105,8 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
           <p className="text-xs text-stone-500">
             Tasa {(a!.rate * 100).toFixed(2)}% ({a!.rate_source}); ajustada para FHA. Son estimaciones, no cotizaciones.
           </p>
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[520px] text-sm">
-              <thead>
-                <tr className="text-left text-stone-500">
-                  <th className="py-1 font-normal"></th>
-                  {scenarios.map((s) => (
-                    <th key={s.scenario} className={`py-1 font-medium ${s.scenario === a!.primary_scenario ? "text-stone-900" : ""}`}>
-                      {SCENARIO_LABELS[s.scenario] ?? s.scenario}
-                      {s.scenario === a!.primary_scenario && " ★"}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-100">
-                <tr>
-                  <td className="py-1.5 text-stone-600">Tasa de interés</td>
-                  {scenarios.map((s) => (
-                    <td key={s.scenario} className="py-1.5">{((s.annual_rate ?? a!.rate) * 100).toFixed(2)}%</td>
-                  ))}
-                </tr>
-                {([
-                  ["Enganche", "down_payment"],
-                  ["Capital e intereses", "monthly_principal_interest"],
-                  ["Seguro hipotecario", "monthly_mortgage_insurance"],
-                  ["Impuesto predial", "monthly_tax"],
-                  ["Seguro de la casa", "monthly_insurance"],
-                  ["Mantenimiento", "monthly_maintenance"],
-                  ["Costo mensual de vivienda", "monthly_housing_cost"],
-                  ["Renta neta (tras vacancia/costos)", "net_rental_contribution"],
-                  ["Pagas al mes", "effective_owner_cost"],
-                ] as const).map(([label, key]) => (
-                  <tr key={key} className={key === "effective_owner_cost" ? "font-semibold" : ""}>
-                    <td className="py-1.5 text-stone-600">{label}</td>
-                    {scenarios.map((s) => <td key={s.scenario} className="py-1.5">{usd(s[key])}</td>)}
-                  </tr>
-                ))}
-                <tr>
-                  <td className="py-1.5 text-stone-600">La renta cubre</td>
-                  {scenarios.map((s) => <td key={s.scenario} className="py-1.5">{pct(s.rent_offset_pct)}</td>)}
-                </tr>
-              </tbody>
-            </table>
+          <div className="mt-3">
+            <FinanceTable scenarios={scenarios} primary={a!.primary_scenario} fallbackRate={a!.rate} />
           </div>
         </section>
       )}

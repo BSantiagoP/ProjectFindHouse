@@ -154,7 +154,8 @@ bottom of the page to restore one.
 - **"Para ganarla" (price likely to win):** a fourth price chosen from the same list (which also
   includes list +3% / +5%) for winning the house **regardless of your budget**. It considers days
   on market and the higher comparable sales. The page shows what you'd pay per month at that price,
-  and flags it when it's above your maximum.
+  and flags it when it's above your maximum. "Ver finanzas a $X" opens the full financing table
+  (all three loans) recalculated at that price, with the same tax, insurance and rent as the listing.
   **Limit:** Zillow's sold records don't include the original list price, so we can't measure how
   far over asking homes really sell here or how many offers there are. Treat it as an informed
   estimate and ask your agent how competitive the house is.
@@ -267,6 +268,6 @@ very little of that.
 
 ## How it's tested
 
-- 179 automated tests cover every rule above.
+- 180 automated tests cover every rule above.
 - Tests block all real network calls.
 - Real-data checks were run and the bugs they found were fixed. See the git history for details.

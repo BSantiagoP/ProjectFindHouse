@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from enum import StrEnum
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -261,6 +261,7 @@ class OfferAnalysis(BaseModel):
     win_reason: str | None = None
     win_monthly_cost: int | None = None  # what you'd pay per month at win_price (scoring loan, after rent)
     win_over_budget: bool | None = None  # win_price above your max price for the monthly target
+    win_finance: dict[str, Any] | None = None  # all loan scenarios recalculated at win_price (no AI)
     status: Literal["ok", "not_enough_comps", "error"] = "ok"
     reason: str | None = None
     model: str | None = None

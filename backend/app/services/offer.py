@@ -229,6 +229,21 @@ def suggest_offer(ev: EvaluatedProperty, prefs: SearchPreferences, rate: Mortgag
     return OfferAnalysis(**base, status="error", reason="La sugerencia de la IA no pasó las verificaciones.")
 
 
+def attach_win_finance(offer: OfferAnalysis, prop: Property, prefs: SearchPreferences, rate: MortgageRate) -> OfferAnalysis:
+    """Deterministic: every loan scenario at the price-to-win (same tax, insurance, rent as the listing)."""
+    from dataclasses import asdict
+
+    from app.services.scoring import finance_for
+
+    if offer.status != "ok" or offer.win_price is None:
+        return offer
+    at_win = finance_for(prop.model_copy(update={"price": offer.win_price}), prefs, rate)
+    return offer.model_copy(update={
+        "win_finance": {k.value if hasattr(k, "value") else k: asdict(v) for k, v in at_win.items()},
+        "win_monthly_cost": monthly_cost_at(prop, prefs, rate, offer.win_price),
+    })
+
+
 class _AsSummary:
     """Adapter so ungrounded_numbers() can check free text lists."""
 

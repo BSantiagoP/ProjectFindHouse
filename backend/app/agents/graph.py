@@ -23,7 +23,7 @@ from app.services.discovery import DiscoveryRun, EvaluatedProperty
 from app.services.photo_analysis import VisionLLM, analyze_photos
 from app.services.agent_summary import SummaryLLM, summarize
 from app.services.driving import Router, estimate_drives
-from app.services.offer import OfferLLM, sold_home_type, suggest_offer
+from app.services.offer import OfferLLM, attach_win_finance, sold_home_type, suggest_offer
 from app.services.filtering import FilterStatus, apply_hard_filters
 from app.services.rates import MortgageRate
 from app.services.scoring import score_property
@@ -177,6 +177,7 @@ def build_graph(deps: AnalysisDeps):
             try:
                 sold = deps.sold_comps.get(p.town, state["prefs"].state, sold_home_type(p))
                 offer = suggest_offer(ev, state["prefs"], deps.rate, sold, deps.offer_llm, model=deps.llm_model)
+                offer = attach_win_finance(offer, p, state["prefs"], deps.rate)  # recomputed every run, no AI
             except Exception as exc:
                 log.warning("Offer failed for %s: %s", p.address.raw, exc)
                 errors.append(f"Offer failed for {p.address.raw}: {exc}"[:300])

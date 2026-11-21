@@ -96,6 +96,7 @@ export interface Property {
     win_reason?: string | null;
     win_monthly_cost?: number | null;
     win_over_budget?: boolean | null;
+    win_finance?: Record<string, ScenarioResult> | null;
     candidate_labels: Record<string, string>;
     comps_median: number | null;
     comps_low: number | null;

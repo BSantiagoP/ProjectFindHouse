@@ -158,3 +158,12 @@ def test_price_to_win_with_monthly_cost_and_budget_flag():
     assert o.win_over_budget is True  # above the max price for $4,000/month
     bad = choice(win="ganar_a_toda_costa")
     assert suggest_offer(ev(), PREFS, RATE, SOLD, FakeLLM(bad, bad), model="m").status == "error"
+
+
+def test_win_finance_has_all_scenarios_at_win_price():
+    from app.services.offer import attach_win_finance
+
+    o = attach_win_finance(suggest_offer(ev(), PREFS, RATE, SOLD, FakeLLM(choice(win="lista_mas_3")), model="m"), subject(), PREFS, RATE)
+    assert set(o.win_finance) == {"fha_3_5", "conventional_5", "conventional_20"}
+    c20 = o.win_finance["conventional_20"]
+    assert c20["down_payment"] == 876_000 * 0.20 and c20["effective_owner_cost"] == pytest.approx(o.win_monthly_cost, abs=1)
