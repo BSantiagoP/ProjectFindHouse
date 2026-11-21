@@ -134,7 +134,7 @@ def test_rent_cap_blocks_requests():
     calls = []
     client, repo = rentcast(lambda r: calls.append(1) or httpx.Response(200, json={"rent": 1}), cap=0)
     est = client.estimate(apply_analysis(mf(), llm_result(), model="m"), OwnerUnit.LARGEST)
-    assert est.status == "not_estimated" and "cap" in est.reason
+    assert est.status == "not_estimated" and "límite mensual" in est.reason
     assert calls == []
 
 
@@ -207,7 +207,7 @@ def test_unknowns_score_zero_and_lower_confidence():
     assert by["rental_potential"].score is None and by["location_commute"].score is None
     assert by["affordability"].score is None  # multifamily without rent can't be judged
     assert a.confidence == pytest.approx(0.30)
-    assert any("Not yet scored" in line for line in a.explanation)
+    assert any("Sin puntuar todavía" in line for line in a.explanation)
 
 
 def test_target_monthly_cost_drives_affordability():
@@ -274,7 +274,7 @@ def test_rentcast_auth_failure_stops_further_requests():
     first = client.estimate(p, OwnerUnit.LARGEST)
     second = client.estimate(p, OwnerUnit.LARGEST)
     assert first.status == second.status == "not_estimated"
-    assert "API key rejected" in first.reason
+    assert "clave API rechazada" in first.reason
     assert len(calls) == 1  # second property never hits the API
 
 
@@ -290,8 +290,8 @@ def test_gtfs_finder_uses_ny_bound_bus_stops_and_rail(tmp_path):
     }))
     finder = GtfsStopFinder(f)
     name, meters = finder.nearest(40.8, -74.1, "bus")
-    assert name.startswith("Near St (bus 159, 156)") and 50 < meters < 60
-    assert finder.nearest(40.8, -74.1, "rail")[0] == "Lyndhurst station"
+    assert name.startswith("Near St (autobús 159, 156)") and 50 < meters < 60
+    assert finder.nearest(40.8, -74.1, "rail")[0] == "estación Lyndhurst"
     assert finder.nearest(41.5, -74.1, "bus") is None  # nothing within radius
 
 
@@ -304,7 +304,7 @@ def test_real_gtfs_extract_has_stops_near_each_town():
     for town, (lat, lon) in centers.items():
         found = finder.nearest(lat, lon, "bus")
         assert found and found[1] < 1200, town  # rough town-center coordinates
-    assert finder.nearest(40.8142, -74.1227, "rail")[0] == "Lyndhurst station"
+    assert finder.nearest(40.8142, -74.1227, "rail")[0] == "estación Lyndhurst"
 
 
 def test_failed_stop_lookup_is_reported():

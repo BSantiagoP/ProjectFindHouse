@@ -112,7 +112,7 @@ def build_graph(deps: AnalysisDeps):
             if needs_rent and deps.rentcast is not None:
                 p = p.model_copy(update={"rent_estimate": deps.rentcast.estimate(p, prefs.owner_unit)})
                 reason = p.rent_estimate.reason or ""
-                if reason.startswith(("RentCast error", "Monthly RentCast cap")):
+                if reason.startswith(("Error de RentCast", "Se alcanzó el límite mensual")):
                     errors.append(f"Rent not estimated for {p.address.raw}: {reason[:160]}")
             elif needs_rent:
                 errors.append("Rent estimate skipped: RentCast not configured")

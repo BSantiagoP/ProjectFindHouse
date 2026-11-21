@@ -39,9 +39,20 @@ const PreferencesInput = z.object({
   owner_unit: z.enum(["largest", "smallest"]),
   annual_insurance: money(0, 50_000),
   rate_override_pct: z.union([z.literal(""), z.coerce.number().min(1).max(15)]),
-  towns: z.array(z.string().min(1)).min(1, "Pick at least one town"),
+  towns: z.array(z.string().min(1)).min(1, "Elige al menos un pueblo"),
   commutes: z.record(z.string(), z.coerce.number().int().min(5).max(240)),
 });
+
+const FIELD_ES: Record<string, string> = {
+  max_price: "Precio máximo",
+  target_monthly_cost: "Meta mensual",
+  primary_scenario: "Financiamiento",
+  owner_unit: "Unidad donde vives",
+  annual_insurance: "Seguro anual",
+  rate_override_pct: "Tasa manual",
+  towns: "Pueblos",
+  commutes: "Minutos de trayecto",
+};
 
 export type PrefsState = { ok: boolean; message: string } | null;
 
@@ -60,13 +71,13 @@ export async function savePreferences(_prev: PrefsState, form: FormData): Promis
   });
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
-    return { ok: false, message: `${issue.path.join(".") || "Form"}: ${issue.message}` };
+    return { ok: false, message: `${FIELD_ES[String(issue.path[0])] ?? "Formulario"}: valor no válido${issue.path[0] === "towns" ? " (elige al menos un pueblo)" : ""}` };
   }
   const v = parsed.data;
 
   const supabase = await createClient();
   const { data: row, error } = await supabase.from("search_preferences").select("data").eq("id", 1).single();
-  if (error || !row) return { ok: false, message: `Could not load current preferences: ${error?.message}` };
+  if (error || !row) return { ok: false, message: `No se pudieron cargar las preferencias actuales: ${error?.message}` };
 
   const current = row.data as Record<string, unknown> & { town_commutes: Record<string, { minutes: number }> };
   const town_commutes = { ...current.town_commutes };
@@ -90,9 +101,9 @@ export async function savePreferences(_prev: PrefsState, form: FormData): Promis
     .eq("id", 1)
     .select("id");
   if (e2) return { ok: false, message: e2.message };
-  if (!updated?.length) return { ok: false, message: "Not saved: this account is not allowed to edit preferences." };
+  if (!updated?.length) return { ok: false, message: "No se guardó: esta cuenta no tiene permiso para editar preferencias." };
   revalidatePath("/preferences");
-  return { ok: true, message: "Saved. The next search uses these settings; scores refresh on that run." };
+  return { ok: true, message: "Guardado. La próxima búsqueda usará estos ajustes y actualizará las puntuaciones." };
 }
 
 export async function signOut() {

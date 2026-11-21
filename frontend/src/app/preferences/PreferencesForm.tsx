@@ -18,43 +18,43 @@ export function PreferencesForm({ prefs }: { prefs: Preferences }) {
     <form action={action} className="space-y-6 rounded-xl border bg-white p-4 shadow-sm">
       <fieldset className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className={label} htmlFor="max_price">Max price ($)</label>
+          <label className={label} htmlFor="max_price">Precio máximo ($)</label>
           <input id="max_price" name="max_price" type="number" step="1000" min={100000} max={5000000} defaultValue={prefs.max_price} className={input} required />
         </div>
         <div>
-          <label className={label} htmlFor="target_monthly_cost">Monthly target after rent ($)</label>
+          <label className={label} htmlFor="target_monthly_cost">Meta mensual después de la renta ($)</label>
           <input id="target_monthly_cost" name="target_monthly_cost" type="number" step="50" min={500} max={50000} defaultValue={prefs.target_monthly_cost ?? ""} className={input} />
-          <p className={hint}>Mortgage + tax + insurance + upkeep, minus rent. Blank = judge by price.</p>
+          <p className={hint}>Hipoteca + impuestos + seguro + mantenimiento, menos la renta. Vacío = se evalúa por precio.</p>
         </div>
         <div>
-          <label className={label} htmlFor="primary_scenario">Financing used for scoring</label>
+          <label className={label} htmlFor="primary_scenario">Financiamiento usado para puntuar</label>
           <select id="primary_scenario" name="primary_scenario" defaultValue={prefs.primary_scenario} className={input}>
-            <option value="fha_3_5">FHA 3.5% down</option>
-            <option value="conventional_5">Conventional 5% down</option>
-            <option value="conventional_20">Conventional 20% down</option>
+            <option value="fha_3_5">FHA 3.5% de enganche</option>
+            <option value="conventional_5">Convencional 5% de enganche</option>
+            <option value="conventional_20">Convencional 20% de enganche</option>
           </select>
         </div>
         <div>
-          <label className={label} htmlFor="owner_unit">You live in the</label>
+          <label className={label} htmlFor="owner_unit">Tú vives en la</label>
           <select id="owner_unit" name="owner_unit" defaultValue={prefs.owner_unit} className={input}>
-            <option value="largest">Largest unit (rent the others)</option>
-            <option value="smallest">Smallest unit (rent the others)</option>
+            <option value="largest">Unidad más grande (alquilas las demás)</option>
+            <option value="smallest">Unidad más pequeña (alquilas las demás)</option>
           </select>
         </div>
         <div>
-          <label className={label} htmlFor="annual_insurance">Home insurance per year ($)</label>
+          <label className={label} htmlFor="annual_insurance">Seguro de la casa por año ($)</label>
           <input id="annual_insurance" name="annual_insurance" type="number" step="100" min={0} max={50000} defaultValue={prefs.annual_insurance} className={input} required />
         </div>
         <div>
-          <label className={label} htmlFor="rate_override_pct">Mortgage rate override (%)</label>
+          <label className={label} htmlFor="rate_override_pct">Tasa hipotecaria manual (%)</label>
           <input id="rate_override_pct" name="rate_override_pct" type="number" step="0.01" min={1} max={15} defaultValue={prefs.rate_override != null ? (prefs.rate_override * 100).toFixed(2) : ""} className={input} />
-          <p className={hint}>Blank = weekly Freddie Mac 30-year average.</p>
+          <p className={hint}>Vacío = promedio semanal de Freddie Mac a 30 años.</p>
         </div>
       </fieldset>
 
       <fieldset>
-        <legend className={label}>Towns and transit time to 7 WTC</legend>
-        <p className={hint}>Minutes from the town&apos;s NYC bus stop or train station to 7 WTC; the walk is added per home.</p>
+        <legend className={label}>Pueblos y tiempo en transporte a 7 WTC</legend>
+        <p className={hint}>Minutos desde la parada de autobús a NYC o estación de tren del pueblo hasta 7 WTC; la caminata se suma por casa.</p>
         <div className="mt-2 divide-y divide-stone-100">
           {towns.map((t) => (
             <div key={t} className="flex items-center gap-3 py-2">
@@ -75,7 +75,7 @@ export function PreferencesForm({ prefs }: { prefs: Preferences }) {
 
       <div className="flex items-center gap-3">
         <button disabled={pending} className="rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-60">
-          {pending ? "Saving…" : "Save preferences"}
+          {pending ? "Guardando…" : "Guardar preferencias"}
         </button>
         {state && <p className={`text-sm ${state.ok ? "text-emerald-700" : "text-red-700"}`} role="status">{state.message}</p>}
       </div>

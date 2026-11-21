@@ -20,7 +20,7 @@ function LoginForm() {
     const { error } = await createClient().auth.signInWithPassword({ email, password });
     setPending(false);
     if (error) {
-      setError(error.status === 429 ? "Too many attempts. Wait a few minutes and try again." : "Wrong email or password.");
+      setError(error.status === 429 ? "Demasiados intentos. Espera unos minutos e inténtalo de nuevo." : "Correo o contraseña incorrectos.");
       return;
     }
     const next = params.get("next") ?? "/";
@@ -36,8 +36,8 @@ function LoginForm() {
         autoComplete="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        placeholder="Email"
-        aria-label="Email"
+        placeholder="Correo electrónico"
+        aria-label="Correo electrónico"
         className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
       />
       <input
@@ -46,15 +46,15 @@ function LoginForm() {
         autoComplete="current-password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        placeholder="Password"
-        aria-label="Password"
+        placeholder="Contraseña"
+        aria-label="Contraseña"
         className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
       />
       <button
         disabled={pending}
         className="w-full rounded-md bg-stone-900 px-3 py-2 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-60"
       >
-        {pending ? "Signing in…" : "Sign in"}
+        {pending ? "Entrando…" : "Entrar"}
       </button>
       {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
     </form>
@@ -65,7 +65,7 @@ export default function LoginPage() {
   return (
     <div className="mx-auto mt-16 max-w-sm rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
       <h1 className="text-xl font-semibold">HomeScout</h1>
-      <p className="mt-1 text-sm text-stone-600">Private dashboard.</p>
+      <p className="mt-1 text-sm text-stone-600">Panel privado.</p>
       <Suspense>
         <LoginForm />
       </Suspense>

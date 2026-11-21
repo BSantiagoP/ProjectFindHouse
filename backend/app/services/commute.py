@@ -46,7 +46,7 @@ class GtfsStopFinder:
             d = haversine_m(lat, lon, s["lat"], s["lon"])
             if d <= SEARCH_RADIUS_M and (best is None or d < best[1]):
                 routes = s.get("routes")
-                label = f"{s['name']} (bus {', '.join(routes[:4])})" if routes else f"{s['name']} station"
+                label = f"{s['name']} (autobús {', '.join(routes[:4])})" if routes else f"estación {s['name']}"
                 best = (label, int(d))
         return best
 

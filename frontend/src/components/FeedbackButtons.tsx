@@ -26,16 +26,16 @@ export function FeedbackButtons({ propertyId, initial }: { propertyId: string; i
         aria-pressed={verdict === "liked"}
         className={`${base} ${verdict === "liked" ? "border-emerald-600 bg-emerald-600 text-white" : "border-stone-300 bg-white hover:border-emerald-600"}`}
       >
-        {verdict === "liked" ? "Liked" : "Like"}
+        {verdict === "liked" ? "Me gusta ✓" : "Me gusta"}
       </button>
       <button
         onClick={() => choose("rejected")}
         disabled={pending}
         aria-pressed={verdict === "rejected"}
-        title="Rejected homes are never texted again"
+        title="Marcar como descartada (se muestra atenuada en la lista)"
         className={`${base} ${verdict === "rejected" ? "border-red-700 bg-red-700 text-white" : "border-stone-300 bg-white hover:border-red-700"}`}
       >
-        {verdict === "rejected" ? "Rejected" : "Reject"}
+        {verdict === "rejected" ? "Descartada" : "Descartar"}
       </button>
     </div>
   );

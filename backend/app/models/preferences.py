@@ -32,11 +32,11 @@ class TownCommute(BaseModel):
 
 
 DEFAULT_TOWN_COMMUTES = {
-    "Lyndhurst": TownCommute(minutes=45, route="NJ Transit rail Lyndhurst -> Hoboken, PATH -> WTC", access="rail"),
-    "Cliffside Park": TownCommute(minutes=60, route="NJ Transit 156 bus -> Port Authority, E train -> WTC (ferry via Edgewater is an alternative)"),
-    "Fairview": TownCommute(minutes=65, route="NJ Transit 156/159 bus -> Port Authority, E train -> WTC"),
-    "Elmwood Park": TownCommute(minutes=75, route="NJ Transit 160/144 bus -> Port Authority, E train -> WTC"),
-    "Saddle Brook": TownCommute(minutes=75, route="NJ Transit bus via Route 46 -> Port Authority, E train -> WTC"),
+    "Lyndhurst": TownCommute(minutes=45, route="tren NJ Transit Lyndhurst → Hoboken, PATH → WTC", access="rail"),
+    "Cliffside Park": TownCommute(minutes=60, route="autobús NJ Transit 156 → Port Authority, tren E → WTC (alternativa: ferry desde Edgewater)"),
+    "Fairview": TownCommute(minutes=65, route="autobús NJ Transit 156/159 → Port Authority, tren E → WTC"),
+    "Elmwood Park": TownCommute(minutes=75, route="autobús NJ Transit 160/144 → Port Authority, tren E → WTC"),
+    "Saddle Brook": TownCommute(minutes=75, route="autobús NJ Transit por la Ruta 46 → Port Authority, tren E → WTC"),
 }
 
 

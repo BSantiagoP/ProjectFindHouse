@@ -32,52 +32,52 @@ def apply_hard_filters(prop: Property, prefs: SearchPreferences, today: date) ->
 
     # Location
     if prop.town is None:
-        rejections.append(f"Outside configured towns ({prop.address.city or 'unknown city'})")
+        rejections.append(f"Fuera de los pueblos elegidos ({prop.address.city or 'ciudad desconocida'})")
 
     # Price
     if prop.price is None:
-        unverified.append("price")
+        unverified.append("precio")
     elif prop.price > prefs.max_price:
-        rejections.append(f"Price ${prop.price:,} exceeds max ${prefs.max_price:,}")
+        rejections.append(f"Precio ${prop.price:,} supera el máximo de ${prefs.max_price:,}")
 
     # Recency
     if prop.listed_date is not None and prop.listed_date < today - timedelta(days=prefs.listing_window_days):
-        rejections.append(f"Listed {prop.listed_date.isoformat()}, older than {prefs.listing_window_days} days")
+        rejections.append(f"Publicada el {prop.listed_date.isoformat()}, hace más de {prefs.listing_window_days} días")
 
     # Property type and units
     match prop.property_type:
         case PropertyType.MULTI_FAMILY:
             if prop.units is None:
-                unverified.append("unit count")
+                unverified.append("número de unidades")
             elif not prefs.min_units <= prop.units <= prefs.max_units:
                 rejections.append(
-                    f"{prop.units} units is outside {prefs.min_units}-{prefs.max_units}"
+                    f"{prop.units} unidades está fuera del rango {prefs.min_units}-{prefs.max_units}"
                 )
         case PropertyType.SINGLE_FAMILY:
-            for name, label in (("finished_basement", "fully finished basement"), ("basement_bathroom", "basement bathroom")):
+            for name, label in (("finished_basement", "sótano completamente terminado"), ("basement_bathroom", "baño en el sótano")):
                 state = getattr(f, name).state
                 if state is FeatureState.ABSENT:
-                    rejections.append(f"Single-family without a {label}")
+                    rejections.append(f"Unifamiliar sin {label}")
                 elif state is FeatureState.UNKNOWN:
                     unverified.append(label)
         case PropertyType.UNKNOWN:
-            unverified.append("property type")
+            unverified.append("tipo de propiedad")
         case other:
-            rejections.append(f"Property type {other.value} is not multifamily or single-family")
+            rejections.append(f"Tipo de propiedad {other.value}: no es multifamiliar ni unifamiliar")
 
     # Parking: garage or driveway
     if f.garage.is_present or f.driveway.is_present:
         pass
     elif f.garage.is_absent and f.driveway.is_absent:
-        rejections.append("No garage or driveway")
+        rejections.append("Sin garaje ni entrada para autos")
     else:
-        unverified.append("garage or driveway")
+        unverified.append("garaje o entrada para autos")
 
     # Laundry
     if f.laundry.is_absent:
-        rejections.append("No laundry")
+        rejections.append("Sin lavandería")
     elif not f.laundry.is_present:
-        unverified.append("laundry")
+        unverified.append("lavandería")
 
     if rejections:
         return FilterResult(FilterStatus.REJECTED, rejections, unverified)

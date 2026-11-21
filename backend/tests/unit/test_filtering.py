@@ -16,7 +16,7 @@ def test_eligible_two_family(prefs):
 def test_price_over_max_rejected(prefs):
     r = check(make_property(price=900_001), prefs)
     assert r.status is FilterStatus.REJECTED
-    assert "exceeds max" in r.rejections[0]
+    assert "supera el máximo" in r.rejections[0]
 
 
 def test_price_at_max_passes(prefs):
@@ -39,7 +39,7 @@ def test_five_units_rejected(prefs):
 def test_unknown_units_needs_verification(prefs):
     r = check(make_property(units=None), prefs)
     assert r.status is FilterStatus.NEEDS_VERIFICATION
-    assert "unit count" in r.unverified
+    assert "número de unidades" in r.unverified
 
 
 def test_condo_rejected(prefs):
@@ -62,7 +62,7 @@ def test_single_family_basement_bath_unknown_needs_verification(prefs):
     feats = PropertyFeatures(garage=present(), laundry=present(), finished_basement=present())
     r = check(make_property(property_type=PropertyType.SINGLE_FAMILY, units=1, features=feats), prefs)
     assert r.status is FilterStatus.NEEDS_VERIFICATION
-    assert "basement bathroom" in r.unverified
+    assert "baño en el sótano" in r.unverified
 
 
 def test_driveway_without_garage_passes(prefs):
@@ -74,21 +74,21 @@ def test_street_parking_only_rejected(prefs):
     feats = PropertyFeatures(garage=absent(), driveway=absent(), laundry=present())
     r = check(make_property(features=feats), prefs)
     assert r.status is FilterStatus.REJECTED
-    assert "No garage or driveway" in r.rejections
+    assert "Sin garaje ni entrada para autos" in r.rejections
 
 
 def test_parking_unknown_needs_verification(prefs):
     feats = PropertyFeatures(laundry=present())
     r = check(make_property(features=feats), prefs)
     assert r.status is FilterStatus.NEEDS_VERIFICATION
-    assert "garage or driveway" in r.unverified
+    assert "garaje o entrada para autos" in r.unverified
 
 
 def test_laundry_unknown_needs_verification(prefs):
     feats = PropertyFeatures(garage=present(), laundry=Feature())
     r = check(make_property(features=feats), prefs)
     assert r.status is FilterStatus.NEEDS_VERIFICATION
-    assert r.unverified == ["laundry"]
+    assert r.unverified == ["lavandería"]
 
 
 def test_no_laundry_rejected(prefs):
@@ -100,7 +100,7 @@ def test_rejection_wins_over_unknowns(prefs):
     feats = PropertyFeatures()
     r = check(make_property(price=1_000_000, features=feats), prefs)
     assert r.status is FilterStatus.REJECTED
-    assert "laundry" in r.unverified
+    assert "lavandería" in r.unverified
 
 
 def test_townhouse_rejected(prefs):

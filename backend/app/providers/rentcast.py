@@ -50,7 +50,7 @@ class RentCastClient:
         resp = self._client.get("/avm/rent/long-term", params=params, headers=self._headers)
         if resp.status_code in (401, 403):
             # Auth failures are not billable requests; stop the run's rent lookups loudly.
-            raise RentCastAuthError(f"RentCast HTTP {resp.status_code}: API key rejected")
+            raise RentCastAuthError(f"RentCast HTTP {resp.status_code}: clave API rechazada")
         if resp.status_code != 200:
             raise RuntimeError(f"RentCast HTTP {resp.status_code}: {resp.text[:200]}")
         d = resp.json()
@@ -62,12 +62,12 @@ class RentCastClient:
     def estimate(self, prop: Property, owner_unit: OwnerUnit) -> RentEstimate:
         rental = rental_units(prop, owner_unit)
         if rental is None:
-            return RentEstimate(status="not_estimated", reason="Unit layout or bedroom counts unknown; cannot price rental units")
+            return RentEstimate(status="not_estimated", reason="Distribución o número de recámaras desconocido; no se puede estimar la renta")
         owner, units = rental
         if not units:
-            return RentEstimate(status="not_estimated", reason="No rental units (single-family)", owner_unit=owner)
+            return RentEstimate(status="not_estimated", reason="Sin unidades para alquilar (unifamiliar)", owner_unit=owner)
         if self.disabled_reason:
-            return RentEstimate(status="not_estimated", reason=f"RentCast error: {self.disabled_reason}", owner_unit=owner)
+            return RentEstimate(status="not_estimated", reason=f"Error de RentCast: {self.disabled_reason}", owner_unit=owner)
         address = prop.address.raw
         results: list[UnitRent] = []
         for unit in units:
@@ -75,16 +75,16 @@ class RentCastClient:
                 r = self._unit_rent(address, unit)
             except RentCastAuthError as exc:
                 self.disabled_reason = str(exc)
-                return RentEstimate(status="not_estimated", reason=f"RentCast error: {exc}", owner_unit=owner)
+                return RentEstimate(status="not_estimated", reason=f"Error de RentCast: {exc}", owner_unit=owner)
             except Exception as exc:
                 log.warning("RentCast failed for %s %s: %s", address, unit.label, exc)
-                return RentEstimate(status="not_estimated", reason=f"RentCast error: {exc}", owner_unit=owner)
+                return RentEstimate(status="not_estimated", reason=f"Error de RentCast: {exc}", owner_unit=owner)
             if r is None:
-                return RentEstimate(status="not_estimated", reason=f"Monthly RentCast cap ({self._cap}) reached",
+                return RentEstimate(status="not_estimated", reason=f"Se alcanzó el límite mensual de RentCast ({self._cap})",
                                     owner_unit=owner, rental_units=results)
             results.append(r)
         if any(r.rent is None for r in results):
-            return RentEstimate(status="not_estimated", reason="RentCast returned no estimate",
+            return RentEstimate(status="not_estimated", reason="RentCast no devolvió una estimación",
                                 owner_unit=owner, rental_units=results)
         return RentEstimate(status="estimated", owner_unit=owner, rental_units=results,
                             monthly_rent_total=sum(r.rent for r in results))

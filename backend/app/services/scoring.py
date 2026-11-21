@@ -73,6 +73,17 @@ def finance_for(prop: Property, prefs: SearchPreferences, rate: MortgageRate) ->
     return out
 
 
+# User-facing text is Spanish (dashboard language, 2026-11-20). Listing quotes stay verbatim.
+CATEGORY_ES = {
+    "affordability": "asequibilidad", "location_commute": "ubicación y trayecto", "condition": "estado",
+    "rental_potential": "potencial de renta", "preferences": "preferencias",
+}
+CONDITION_ES = {
+    Condition.MOVE_IN_READY: "listo para mudarse", Condition.UPDATED: "actualizado", Condition.DATED: "anticuado",
+    Condition.NEEDS_WORK: "necesita trabajo", Condition.UNKNOWN: "desconocido",
+}
+SCENARIO_ES = {"fha_3_5": "FHA 3.5% de enganche", "conventional_5": "Convencional 5%", "conventional_20": "Convencional 20%"}
+
 _CONDITION_SCORES = {
     Condition.MOVE_IN_READY: 10, Condition.UPDATED: 8, Condition.DATED: 4, Condition.NEEDS_WORK: 1,
 }
@@ -89,31 +100,31 @@ def score_property(prop: Property, prefs: SearchPreferences, rate: MortgageRate)
 
     # Affordability: effective monthly cost (after rent) vs target, else price vs max.
     if primary is None:
-        cats.append(CategoryScore(name="affordability", weight=w.affordability, score=None, reason="Price unknown"))
+        cats.append(CategoryScore(name="affordability", weight=w.affordability, score=None, reason="Precio desconocido"))
         missing.append("price")
     elif is_multi and not rent_known:
         cats.append(CategoryScore(name="affordability", weight=w.affordability, score=None,
-                                  reason="Rent for the rental unit(s) not estimated yet"))
+                                  reason="Aún no se estimó la renta de la(s) unidad(es) a alquilar"))
         missing.append("rent estimate")
     elif prefs.target_monthly_cost:
         t = prefs.target_monthly_cost
         s = _lerp_score(primary.effective_owner_cost, best=0.75 * t, worst=1.5 * t)
         cats.append(CategoryScore(name="affordability", weight=w.affordability, score=round(s, 1),
-                                  reason=f"${primary.effective_owner_cost:,.0f}/mo after rent vs ${t:,}/mo target"))
+                                  reason=f"${primary.effective_owner_cost:,.0f}/mes después de la renta vs. meta de ${t:,}/mes"))
     else:
         s = _lerp_score(prop.price, best=0.6 * prefs.max_price, worst=prefs.max_price)
         cats.append(CategoryScore(name="affordability", weight=w.affordability, score=round(s, 1),
-                                  reason=f"${prop.price:,} vs ${prefs.max_price:,} max (set a monthly target for a better measure)"))
+                                  reason=f"${prop.price:,} vs. máximo de ${prefs.max_price:,} (define una meta mensual para una mejor medida)"))
 
     # Location & commute: 40 min -> 10, 90 min -> 0.
     c = prop.commute
     if c and c.total_minutes is not None:
         s = _lerp_score(c.total_minutes, best=40, worst=90)
         cats.append(CategoryScore(name="location_commute", weight=w.location_commute, score=round(s, 1),
-                                  reason=f"~{c.total_minutes} min to {c.destination} ({c.walk_minutes} min walk to {c.nearest_stop}, then {c.route})"))
+                                  reason=f"~{c.total_minutes} min a {c.destination} ({c.walk_minutes} min caminando a {c.nearest_stop}, luego {c.route})"))
     else:
         cats.append(CategoryScore(name="location_commute", weight=w.location_commute, score=None,
-                                  reason="Commute not estimated (no coordinates or nearby stop)"))
+                                  reason="Trayecto no estimado (sin coordenadas o sin parada cercana)"))
         missing.append("commute")
 
     # Condition from the listing text; photos only when the text doesn't say.
@@ -122,40 +133,40 @@ def score_property(prop: Property, prefs: SearchPreferences, rate: MortgageRate)
     if cond in _CONDITION_SCORES:
         quote = prop.llm_analysis.condition_quote
         cats.append(CategoryScore(name="condition", weight=w.condition, score=_CONDITION_SCORES[cond],
-                                  reason=f"{cond.value.replace('_', ' ')}: \"{quote}\""))
+                                  reason=f"{CONDITION_ES[cond]}: \"{quote}\""))
     elif photo and photo.condition in _CONDITION_SCORES:
         cats.append(CategoryScore(name="condition", weight=w.condition, score=_CONDITION_SCORES[photo.condition],
-                                  reason=f"{photo.condition.value.replace('_', ' ')} (from photos) — {photo.condition_note}"))
+                                  reason=f"{CONDITION_ES[photo.condition]} (según fotos) — {photo.condition_note}"))
     else:
-        cats.append(CategoryScore(name="condition", weight=w.condition, score=None, reason="Condition not stated"))
+        cats.append(CategoryScore(name="condition", weight=w.condition, score=None, reason="El anuncio no indica el estado"))
         missing.append("condition")
 
     # Rental potential: rent offset 0% -> 0, 60%+ -> 10.
     if not is_multi:
         cats.append(CategoryScore(name="rental_potential", weight=w.rental_potential, score=0,
-                                  reason="Single-family: no rental unit"))
+                                  reason="Unifamiliar: sin unidad para alquilar"))
     elif rent_known and primary and primary.rent_offset_pct is not None:
         s = _clamp(10 * primary.rent_offset_pct / 0.6)
         units = ", ".join(f"{u.label} ${u.rent:,}" for u in prop.rent_estimate.rental_units)
         cats.append(CategoryScore(name="rental_potential", weight=w.rental_potential, score=round(s, 1),
-                                  reason=f"Rent covers {primary.rent_offset_pct:.0%} of housing cost ({units})"))
+                                  reason=f"La renta cubre el {primary.rent_offset_pct:.0%} del costo de vivienda ({units})"))
     else:
-        reason = prop.rent_estimate.reason if prop.rent_estimate else "Rent not estimated yet"
+        reason = prop.rent_estimate.reason if prop.rent_estimate else "Renta aún no estimada"
         cats.append(CategoryScore(name="rental_potential", weight=w.rental_potential, score=None, reason=reason))
 
     # Preferences: finished basement w/ bath 5, outdoor space 3, garage (vs driveway) 2.
     f = prop.features
     pts, notes = 0.0, []
     if f.finished_basement.is_present and f.basement_bathroom.is_present:
-        pts += 5; notes.append("finished basement with bath")
+        pts += 5; notes.append("sótano terminado con baño")
     elif f.finished_basement.is_present:
-        pts += 2.5; notes.append("finished basement (bath unconfirmed)")
+        pts += 2.5; notes.append("sótano terminado (baño sin confirmar)")
     if f.outdoor_space.is_present:
-        pts += 3; notes.append("outdoor space")
+        pts += 3; notes.append("patio / espacio exterior")
     if f.garage.is_present:
-        pts += 2; notes.append("garage")
+        pts += 2; notes.append("garaje")
     cats.append(CategoryScore(name="preferences", weight=w.preferences, score=pts,
-                              reason=", ".join(notes) if notes else "No preferred features confirmed"))
+                              reason=", ".join(notes) if notes else "Ninguna característica preferida confirmada"))
 
     total_w = sum(c.weight for c in cats)
     known_w = sum(c.weight for c in cats if c.score is not None)
@@ -173,17 +184,17 @@ def _explain(prop: Property, cats: list[CategoryScore], primary: ScenarioResult 
     lines = []
     known = sorted((c for c in cats if c.score is not None), key=lambda c: c.points, reverse=True)
     if known:
-        lines.append(f"Strongest: {known[0].name.replace('_', ' ')} — {known[0].reason}")
+        lines.append(f"Lo más fuerte: {CATEGORY_ES.get(known[0].name, known[0].name)} — {known[0].reason}")
         if len(known) > 1 and known[-1].score is not None and known[-1].score < 5:
-            lines.append(f"Weakest: {known[-1].name.replace('_', ' ')} — {known[-1].reason}")
+            lines.append(f"Lo más débil: {CATEGORY_ES.get(known[-1].name, known[-1].name)} — {known[-1].reason}")
     if primary:
         lines.append(
-            f"{prefs.primary_scenario.value}: ${primary.down_payment:,.0f} down, "
-            f"${primary.monthly_housing_cost:,.0f}/mo housing, ${primary.effective_owner_cost:,.0f}/mo after rent"
+            f"{SCENARIO_ES.get(prefs.primary_scenario.value, prefs.primary_scenario.value)}: ${primary.down_payment:,.0f} de enganche, "
+            f"${primary.monthly_housing_cost:,.0f}/mes de vivienda, ${primary.effective_owner_cost:,.0f}/mes después de la renta"
         )
-    unknown = [c.name.replace("_", " ") for c in cats if c.score is None]
+    unknown = [CATEGORY_ES.get(c.name, c.name) for c in cats if c.score is None]
     if unknown:
-        lines.append("Not yet scored (counted as 0): " + ", ".join(unknown))
+        lines.append("Sin puntuar todavía (cuenta como 0): " + ", ".join(unknown))
     if prop.llm_analysis and prop.llm_analysis.red_flags:
-        lines.append("Red flags: " + "; ".join(f'"{q}"' for q in prop.llm_analysis.red_flags))
+        lines.append("Alertas del anuncio: " + "; ".join(f'"{q}"' for q in prop.llm_analysis.red_flags))
     return lines

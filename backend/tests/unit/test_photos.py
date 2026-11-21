@@ -73,7 +73,7 @@ def test_valid_presence_is_accepted_with_photo_evidence():
     out = analyze_photos(sf_needing_bath(), FakeVision(TRIAGE, f))
     feat = out.features.basement_bathroom
     assert feat.state is FeatureState.PRESENT and feat.source is FeatureSource.PHOTOS
-    assert feat.evidence.startswith("Photo 27:")  # mapped back to the listing's photo number
+    assert feat.evidence.startswith("Foto 27:")  # mapped back to the listing's photo number
     assert out.photo_analysis.accepted == ["basement_bathroom"]
 
 
@@ -116,7 +116,7 @@ def test_condition_from_photos_scored_and_labeled():
     out = analyze_photos(sf_needing_bath(), FakeVision(TRIAGE, f))
     a = score_property(out, SearchPreferences(), MortgageRate(0.06, None, "t"))
     cond = next(c for c in a.categories if c.name == "condition")
-    assert cond.score == 8 and "(from photos)" in cond.reason and "Photo 28" in cond.reason
+    assert cond.score == 8 and "(según fotos)" in cond.reason and "Foto 28" in cond.reason
 
 
 def test_cached_photo_analysis_not_repeated():
@@ -161,3 +161,14 @@ def test_switching_photo_model_redoes_analysis_and_clears_old_findings():
     redone = analyze_photos(once, luna)
     assert len(luna.calls) == 2 and redone.photo_analysis.model == "luna"
     assert redone.features.outdoor_space.state is FeatureState.UNKNOWN  # old model's finding removed
+
+
+def test_version_bump_does_not_recall_api_for_skipped_analyses():
+    tri = PhotoTriage(photos=[PhotoLabel(index=1, rooms=[Room.BEDROOM])])
+    v = FakeVision(tri, findings())
+    p = make_property(photo_urls=photos(1), features=PropertyFeatures(garage=present(), laundry=present()))
+    once = analyze_photos(p, v)
+    assert once.photo_analysis.skipped_reason == "No relevant photos" and len(v.calls) == 1
+    stale = once.model_copy(update={"photo_analysis": once.photo_analysis.model_copy(update={"version": "old"})})
+    again = analyze_photos(stale, v)
+    assert len(v.calls) == 1 and again.photo_analysis.version != "old"

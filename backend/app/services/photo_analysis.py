@@ -26,7 +26,8 @@ from app.models.property import Feature, FeatureSource, FeatureState, Property, 
 
 log = logging.getLogger(__name__)
 
-PHOTO_VERSION = "photo-v2"  # v2: required features need high confidence
+PHOTO_VERSION = "photo-v3"  # v3: Spanish evidence wording (re-applied from stored output, no API calls)
+CONFIDENCE_ES = {"high": "alta", "medium": "media", "low": "baja"}
 MAX_TRIAGE = 60
 MAX_DETAILED = 10
 
@@ -55,7 +56,8 @@ Rules:
 - finished_basement: present only for a below-grade space with finished walls, flooring and ceiling.
 - garage: a garage door or garage interior belonging to this property.
 - condition: judge finishes in kitchens/bathrooms/living areas: move_in_ready, updated, dated, needs_work,
-  or unknown if the photos are not enough. Cite the photo numbers you used."""
+  or unknown if the photos are not enough. Cite the photo numbers you used.
+- Write every "observation" and "condition_observation" in Spanish."""
 
 
 class VisionLLM(Protocol):
@@ -154,6 +156,9 @@ def analyze_photos(prop: Property, llm: VisionLLM) -> Property:
         pa = None
     if pa and pa.version == PHOTO_VERSION:
         return prop
+    if pa and pa.raw_findings is None and pa.skipped_reason and pa.model == llm.model:
+        # Nothing was found last time, so there is nothing to re-word: just mark it current.
+        return prop.model_copy(update={"photo_analysis": pa.model_copy(update={"version": PHOTO_VERSION})})
     if pa and pa.raw_findings is not None:
         # Rules changed: re-apply stored model output, no new API calls.
         prop = _reset_photo_features(prop)
@@ -216,7 +221,7 @@ def apply_photo_findings(prop: Property, findings: PhotoFindings, targets: list[
             rejected.append(f"{name}: cited photos {f.photo_numbers} not valid for this feature")
             continue
         original = [picked[n - 1] + 1 for n in f.photo_numbers]
-        evidence = f"Photo {', '.join(map(str, original))}: {f.observation or 'visible'} ({f.confidence} confidence)"
+        evidence = f"Foto {', '.join(map(str, original))}: {f.observation or 'visible'} (confianza {CONFIDENCE_ES[f.confidence]})"
         if f.confidence != "high" and name in required:
             # Eligibility needs a clear view; keep it as a lead for an in-person check.
             likely.append(f"{name} — {evidence}")
@@ -230,7 +235,7 @@ def apply_photo_findings(prop: Property, findings: PhotoFindings, targets: list[
         if cited_ok(findings.condition_photo_numbers, CONDITION_ROOMS):
             condition = findings.condition
             original = [picked[n - 1] + 1 for n in findings.condition_photo_numbers]
-            note = f"Photo {', '.join(map(str, original))}: {findings.condition_observation or condition.value}"
+            note = f"Foto {', '.join(map(str, original))}: {findings.condition_observation or condition.value}"
             accepted.append("condition")
         else:
             rejected.append(f"condition: cited photos {findings.condition_photo_numbers} not valid")
@@ -238,7 +243,7 @@ def apply_photo_findings(prop: Property, findings: PhotoFindings, targets: list[
     analysis = PhotoAnalysis(
         **base, photos_examined=[i + 1 for i in picked], accepted=accepted, rejected=rejected, likely=likely,
         condition=condition, condition_note=note,
-        skipped_reason="Condition not judged: photos are virtually staged" if staged else None,
+        skipped_reason="Estado no evaluado: fotos con decoración virtual" if staged else None,
         raw_findings=findings, targets=targets, picked=picked,
         rooms_by_sent={n: sorted(r) for n, r in rooms_by_sent.items()}, staged=staged,
     )

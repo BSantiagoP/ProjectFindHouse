@@ -40,13 +40,13 @@ def test_pipeline_outcomes():
 def test_rejection_reasons_are_explained():
     r = run()
     reasons = {e.property.external_id: e.filter.rejections for e in r.results}
-    assert reasons["900003"] == ["No garage or driveway"]
-    assert reasons["900005"] == ["Single-family without a fully finished basement"]
+    assert reasons["900003"] == ["Sin garaje ni entrada para autos"]
+    assert reasons["900005"] == ["Unifamiliar sin sótano completamente terminado"]
     assert "condo" in reasons["900007"][0]
-    assert "older than 7 days" in reasons["900008"][0]
-    assert "exceeds max" in reasons["900009"][0]
-    assert "Outside configured towns" in reasons["900010"][0]
-    assert "5 units" in reasons["900011"][0]
+    assert "hace más de 7 días" in reasons["900008"][0]
+    assert "supera el máximo" in reasons["900009"][0]
+    assert "Fuera de los pueblos elegidos" in reasons["900010"][0]
+    assert "5 unidades" in reasons["900011"][0]
 
 
 def test_eligible_have_required_output_fields_and_evidence():

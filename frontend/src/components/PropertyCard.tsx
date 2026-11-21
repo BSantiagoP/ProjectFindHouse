@@ -24,8 +24,8 @@ export function PropertyCard({ r, feedback }: { r: RunResult; feedback?: Feedbac
             <div>
               <p className="text-xs uppercase tracking-wide text-stone-500">
                 {r.rank ? `#${r.rank} · ` : ""}
-                {p.town} · {p.units && p.units > 1 ? `${p.units}-family` : "Single-family"}
-                {r.is_new ? " · New" : ""}
+                {p.town} · {p.units && p.units > 1 ? `${p.units} unidades` : "Unifamiliar"}
+                {r.is_new ? " · Nueva" : ""}
               </p>
               <h2 className="font-semibold">{p.address.street ?? p.address.raw}</h2>
               <p className="text-lg font-semibold">{usd(p.price)}</p>
@@ -35,25 +35,25 @@ export function PropertyCard({ r, feedback }: { r: RunResult; feedback?: Feedbac
           <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-stone-700">
             {primary && (
               <>
-                <dt className="text-stone-500">{rentKnown ? "Monthly after rent" : "Monthly (no rent est.)"}</dt>
+                <dt className="text-stone-500">{rentKnown ? "Mensual después de renta" : "Mensual (sin renta est.)"}</dt>
                 <dd>{usd(rentKnown ? primary.effective_owner_cost : primary.monthly_housing_cost)}</dd>
               </>
             )}
             {p.commute?.total_minutes != null && (
               <>
-                <dt className="text-stone-500">Commute to WTC</dt>
+                <dt className="text-stone-500">Trayecto a WTC</dt>
                 <dd>~{p.commute.total_minutes} min</dd>
               </>
             )}
             {rentKnown && (
               <>
-                <dt className="text-stone-500">Rental income</dt>
-                <dd>{usd(p.rent_estimate!.monthly_rent_total)}/mo</dd>
+                <dt className="text-stone-500">Ingreso por renta</dt>
+                <dd>{usd(p.rent_estimate!.monthly_rent_total)}/mes</dd>
               </>
             )}
           </dl>
           {r.unverified.length > 0 && (
-            <p className="text-xs text-amber-700">To verify: {r.unverified.join(", ")}</p>
+            <p className="text-xs text-amber-700">Por verificar: {r.unverified.join(", ")}</p>
           )}
         </div>
       </Link>
