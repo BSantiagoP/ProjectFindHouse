@@ -65,6 +65,15 @@ export interface Property {
     rental_units: { label: string; bedrooms: number | null; rent: number | null; range_low: number | null; range_high: number | null }[];
     monthly_rent_total: number | null;
   } | null;
+  agent_summary: {
+    verdict: "recomendada" | "considerar" | "no_recomendada";
+    headline: string;
+    reasons_for: string[];
+    reasons_against: string[];
+    next_steps: string[];
+    verdict_adjusted: boolean;
+    generated_at: string;
+  } | null;
   commute: {
     destination: string;
     town_minutes: number;

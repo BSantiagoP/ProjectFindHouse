@@ -1,7 +1,7 @@
 """LangGraph analysis workflow (plan.md section 8).
 
 load_candidates -> analyze_description -> analyze_photos -> refilter -> enrich (rent, commute)
-  -> score -> validate -> select_top
+  -> score -> validate -> select_top -> write_summaries
 
 Paid/slow calls are cached on the Property, so re-runs only analyze new listings.
 """
@@ -21,6 +21,7 @@ from app.models.analysis import CommuteEstimate
 from app.services.description_analysis import PROMPT_VERSION, StructuredLLM, analyze_description, reset_text_features
 from app.services.discovery import DiscoveryRun, EvaluatedProperty
 from app.services.photo_analysis import VisionLLM, analyze_photos
+from app.services.agent_summary import SummaryLLM, summarize
 from app.services.filtering import FilterStatus, apply_hard_filters
 from app.services.rates import MortgageRate
 from app.services.scoring import score_property
@@ -37,6 +38,7 @@ class AnalysisDeps:
     rate: MortgageRate
     today: date = field(default_factory=date.today)
     vision: VisionLLM | None = None
+    summarizer: SummaryLLM | None = None
 
 
 class State(TypedDict):
@@ -151,6 +153,25 @@ def build_graph(deps: AnalysisDeps):
             ev.rank = i
         return {}
 
+    def write_summaries(state: State) -> dict[str, Any]:
+        """Final step: the agent's verdict, written from the computed facts only."""
+        errors = list(state["errors"])
+        if deps.summarizer is None:
+            return {}
+        for ev in state["candidates"]:
+            if ev.analysis is None:
+                continue
+            try:
+                summary = summarize(ev, state["prefs"], deps.summarizer, model=deps.llm_model)
+            except Exception as exc:
+                log.warning("Summary failed for %s: %s", ev.property.address.raw, exc)
+                errors.append(f"Summary failed for {ev.property.address.raw}: {exc}"[:300])
+                continue
+            if summary is None:
+                errors.append(f"Summary for {ev.property.address.raw} cited unsupported numbers; omitted")
+            ev.property = ev.property.model_copy(update={"agent_summary": summary})
+        return {"errors": errors}
+
     g = StateGraph(State)
     g.add_node("load_candidates", load_candidates)
     g.add_node("analyze_description", analyze_description_node)
@@ -160,6 +181,7 @@ def build_graph(deps: AnalysisDeps):
     g.add_node("score", score)
     g.add_node("validate", validate)
     g.add_node("select_top", select_top)
+    g.add_node("write_summaries", write_summaries)
     g.add_edge(START, "load_candidates")
     g.add_conditional_edges("load_candidates", has_candidates, ["analyze_description", END])
     g.add_edge("analyze_description", "analyze_photos")
@@ -168,7 +190,8 @@ def build_graph(deps: AnalysisDeps):
     g.add_edge("enrich", "score")
     g.add_edge("score", "validate")
     g.add_edge("validate", "select_top")
-    g.add_edge("select_top", END)
+    g.add_edge("select_top", "write_summaries")
+    g.add_edge("write_summaries", END)
     return g.compile()
 
 

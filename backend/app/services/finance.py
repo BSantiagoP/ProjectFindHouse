@@ -71,12 +71,26 @@ def net_rental_contribution(inputs: CostInputs) -> float:
     return gross * (1 - inputs.vacancy_pct - inputs.rental_opex_pct - inputs.rental_reserve_pct)
 
 
+# FHA annual MIP for 30-year loans (HUD Mortgagee Letter 2023-05): the rate depends on the base
+# loan amount and loan-to-value. All HomeScout FHA scenarios are 3.5% down (LTV 96.5%).
+FHA_HIGH_BALANCE = 726_200
+
+
+def annual_mi_rate(scenario: LoanScenario, base_loan: float, price: float) -> float:
+    if scenario.name is not FinanceScenarioName.FHA_3_5:
+        return scenario.annual_mortgage_insurance_pct
+    ltv = base_loan / price if price else 1.0
+    if base_loan > FHA_HIGH_BALANCE:
+        return 0.0075 if ltv > 0.95 else 0.0070
+    return 0.0055 if ltv > 0.95 else 0.0050
+
+
 def evaluate_scenario(inputs: CostInputs, scenario: LoanScenario) -> ScenarioResult:
     down = inputs.price * scenario.down_payment_pct
     base_loan = inputs.price - down
     loan = base_loan * (1 + scenario.upfront_fee_pct)
     pi = monthly_payment(loan, inputs.annual_rate, inputs.term_years)
-    mi = base_loan * scenario.annual_mortgage_insurance_pct / 12
+    mi = base_loan * annual_mi_rate(scenario, base_loan, inputs.price) / 12
     tax = inputs.annual_tax / 12
     ins = inputs.annual_insurance / 12
     maint = inputs.price * inputs.annual_maintenance_pct / 12

@@ -163,3 +163,23 @@ class PhotoAnalysis(BaseModel):
     rooms_by_sent: dict[int, list[Room]] = Field(default_factory=dict)
     staged: bool = False
     analyzed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# ---- Agent summary (final verdict written after all analysis) ---------------------------
+
+class SummaryOutput(BaseModel):
+    """What the model returns. Spanish, built only from the facts it is given."""
+
+    verdict: Literal["recomendada", "considerar", "no_recomendada"]
+    headline: str = Field(description="Una oración en español con la conclusión principal")
+    reasons_for: list[str] = Field(description="2-4 razones a favor, en español, cada una basada en los datos")
+    reasons_against: list[str] = Field(description="1-4 razones en contra o riesgos, en español")
+    next_steps: list[str] = Field(description="1-3 pasos concretos a seguir antes de decidir, en español")
+
+
+class AgentSummary(SummaryOutput):
+    model: str
+    prompt_version: str
+    facts_hash: str  # summary is regenerated only when these facts change
+    verdict_adjusted: bool = False  # True if a rule capped the model's verdict
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

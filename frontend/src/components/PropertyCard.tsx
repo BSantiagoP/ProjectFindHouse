@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { FeedbackButtons } from "@/components/FeedbackButtons";
 import { ScoreBadge } from "@/components/Score";
+import { VerdictBadge } from "@/components/Verdict";
 import { usd } from "@/lib/format";
 import type { Feedback, RunResult } from "@/lib/types";
 
@@ -52,6 +53,12 @@ export function PropertyCard({ r, feedback }: { r: RunResult; feedback?: Feedbac
               </>
             )}
           </dl>
+          {p.agent_summary && (
+            <p className="flex items-start gap-2 text-sm text-stone-700">
+              <VerdictBadge verdict={p.agent_summary.verdict} />
+              <span>{p.agent_summary.headline}</span>
+            </p>
+          )}
           {r.unverified.length > 0 && (
             <p className="text-xs text-amber-700">Por verificar: {r.unverified.join(", ")}</p>
           )}

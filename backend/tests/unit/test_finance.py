@@ -51,3 +51,9 @@ def test_housing_cost_and_rent_offset():
     assert r.net_rental_contribution == pytest.approx(2000.0)
     assert r.effective_owner_cost == pytest.approx(2014.87, abs=0.01)
     assert r.rent_offset_pct == pytest.approx(2000 / 4014.87, abs=1e-4)
+
+
+def test_fha_high_balance_mip_is_075_percent():
+    # $850,000 price, 3.5% down -> base loan $820,250 > $726,200 -> 0.75%/yr
+    r = evaluate_all(CostInputs(price=850_000, annual_rate=0.07, annual_maintenance_pct=0))[S.FHA_3_5]
+    assert r.monthly_mortgage_insurance == pytest.approx(820_250 * 0.0075 / 12, abs=0.01)  # $512.66
