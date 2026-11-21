@@ -1,7 +1,7 @@
 """LangGraph analysis workflow (plan.md section 8).
 
 load_candidates -> analyze_description -> analyze_photos -> refilter -> enrich (rent, commute)
-  -> score -> validate -> select_top -> write_summaries
+  -> score -> validate -> select_top -> suggest_offers (top 5) -> write_summaries
 
 Paid/slow calls are cached on the Property, so re-runs only analyze new listings.
 """
@@ -23,6 +23,7 @@ from app.services.discovery import DiscoveryRun, EvaluatedProperty
 from app.services.photo_analysis import VisionLLM, analyze_photos
 from app.services.agent_summary import SummaryLLM, summarize
 from app.services.driving import Router, estimate_drives
+from app.services.offer import OfferLLM, sold_home_type, suggest_offer
 from app.services.filtering import FilterStatus, apply_hard_filters
 from app.services.rates import MortgageRate
 from app.services.scoring import score_property
@@ -41,6 +42,8 @@ class AnalysisDeps:
     vision: VisionLLM | None = None
     summarizer: SummaryLLM | None = None
     router: Router | None = None
+    sold_comps: Any = None  # SoldCompsService
+    offer_llm: OfferLLM | None = None
     rejected_keys: set[tuple[str, str]] = field(default_factory=set)  # discarded in the dashboard
 
 
@@ -162,6 +165,25 @@ def build_graph(deps: AnalysisDeps):
             ev.rank = i
         return {}
 
+    def suggest_offers(state: State) -> dict[str, Any]:
+        """Suggested offer for the top-ranked homes only (decided 2026-11-21)."""
+        errors = list(state["errors"])
+        if deps.sold_comps is None or deps.offer_llm is None:
+            return {}
+        for ev in state["candidates"]:
+            if not ev.rank or ev.analysis is None or ev.property.town is None:
+                continue
+            p = ev.property
+            try:
+                sold = deps.sold_comps.get(p.town, state["prefs"].state, sold_home_type(p))
+                offer = suggest_offer(ev, state["prefs"], deps.rate, sold, deps.offer_llm, model=deps.llm_model)
+            except Exception as exc:
+                log.warning("Offer failed for %s: %s", p.address.raw, exc)
+                errors.append(f"Offer failed for {p.address.raw}: {exc}"[:300])
+                continue
+            ev.property = p.model_copy(update={"offer": offer})
+        return {"errors": errors}
+
     def write_summaries(state: State) -> dict[str, Any]:
         """Final step: the agent's verdict, written from the computed facts only."""
         errors = list(state["errors"])
@@ -190,6 +212,7 @@ def build_graph(deps: AnalysisDeps):
     g.add_node("score", score)
     g.add_node("validate", validate)
     g.add_node("select_top", select_top)
+    g.add_node("suggest_offers", suggest_offers)
     g.add_node("write_summaries", write_summaries)
     g.add_edge(START, "load_candidates")
     g.add_conditional_edges("load_candidates", has_candidates, ["analyze_description", END])
@@ -199,7 +222,8 @@ def build_graph(deps: AnalysisDeps):
     g.add_edge("enrich", "score")
     g.add_edge("score", "validate")
     g.add_edge("validate", "select_top")
-    g.add_edge("select_top", "write_summaries")
+    g.add_edge("select_top", "suggest_offers")
+    g.add_edge("suggest_offers", "write_summaries")
     g.add_edge("write_summaries", END)
     return g.compile()
 

@@ -5,7 +5,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field, HttpUrl
 
-from app.models.analysis import AgentSummary, CommuteEstimate, DriveEstimate, LLMAnalysis, PhotoAnalysis, RentEstimate
+from app.models.analysis import AgentSummary, CommuteEstimate, DriveEstimate, OfferAnalysis, LLMAnalysis, PhotoAnalysis, RentEstimate
 
 
 class FeatureState(StrEnum):
@@ -99,6 +99,7 @@ class Property(BaseModel):
     commute: CommuteEstimate | None = None
     drives: list[DriveEstimate] = Field(default_factory=list)
     agent_summary: AgentSummary | None = None
+    offer: OfferAnalysis | None = None
     observed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     @property

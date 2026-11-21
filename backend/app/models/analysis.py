@@ -208,3 +208,52 @@ class AgentSummary(SummaryOutput):
     facts_hash: str  # summary is regenerated only when these facts change
     verdict_adjusted: bool = False  # True if a rule capped the model's verdict
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# ---- Suggested offer (sold comparables + agent choice among computed prices) -------------
+
+class SoldComp(BaseModel):
+    address: str
+    price: int  # sold price
+    beds: float | None = None
+    baths: float | None = None
+    square_feet: int | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    days_since_sold: int | None = None  # Zillow "days on Zillow" for sold homes (approximate)
+    zestimate: int | None = None
+    url: str | None = None
+    distance_mi: float | None = None  # filled when matched to a subject home
+
+
+class OfferChoice(BaseModel):
+    """Model output: picks keys from the candidate price list; never writes its own numbers."""
+
+    opening_key: str = Field(description="Clave de la lista 'precios_candidatos' para la oferta inicial")
+    target_key: str = Field(description="Clave para el precio objetivo")
+    walk_away_key: str = Field(description="Clave para el precio máximo (retirarse si se supera)")
+    rationale: list[str] = Field(description="2-4 razones en español, basadas solo en los datos")
+    risks: list[str] = Field(description="1-3 riesgos o advertencias en español")
+
+
+class OfferAnalysis(BaseModel):
+    comps: list[SoldComp] = Field(default_factory=list)
+    comps_median: int | None = None
+    comps_low: int | None = None  # 25th percentile
+    comps_high: int | None = None  # 75th percentile
+    max_affordable_price: int | None = None  # price that keeps you at your monthly target
+    candidates: dict[str, int] = Field(default_factory=dict)  # key -> price
+    candidate_labels: dict[str, str] = Field(default_factory=dict)  # key -> Spanish label
+    opening: int | None = None
+    target: int | None = None
+    walk_away: int | None = None
+    opening_key: str | None = None
+    target_key: str | None = None
+    walk_away_key: str | None = None
+    rationale: list[str] = Field(default_factory=list)
+    risks: list[str] = Field(default_factory=list)
+    status: Literal["ok", "not_enough_comps", "error"] = "ok"
+    reason: str | None = None
+    model: str | None = None
+    facts_hash: str | None = None
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

@@ -82,6 +82,32 @@ export interface Property {
     monthly_rent_total: number | null;
   } | null;
   drives: { destination: string; address: string; minutes: number | null; miles: number | null }[];
+  offer?: {
+    status: "ok" | "not_enough_comps" | "error";
+    reason: string | null;
+    opening: number | null;
+    target: number | null;
+    walk_away: number | null;
+    opening_key: string | null;
+    target_key: string | null;
+    walk_away_key: string | null;
+    candidate_labels: Record<string, string>;
+    comps_median: number | null;
+    comps_low: number | null;
+    comps_high: number | null;
+    max_affordable_price: number | null;
+    rationale: string[];
+    risks: string[];
+    comps: {
+      address: string;
+      price: number;
+      beds: number | null;
+      baths: number | null;
+      distance_mi: number | null;
+      days_since_sold: number | null;
+      url: string | null;
+    }[];
+  } | null;
   agent_summary: {
     verdict: "recomendada" | "considerar" | "no_recomendada";
     headline: string;

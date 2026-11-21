@@ -18,6 +18,7 @@ from typing import Any
 
 import httpx
 
+from app.models.analysis import SoldComp
 from app.models.property import (
     Address,
     Feature,
@@ -35,7 +36,7 @@ from app.providers.base import (
     RequestBudget,
     SearchQuery,
 )
-from app.services.address import parse_address
+from app.services.address import normalize_street, parse_address
 
 log = logging.getLogger(__name__)
 
@@ -143,6 +144,34 @@ class HasDataProvider:
             if not has_next or not records:
                 break
         return results
+
+    def search_sold(self, location: str, home_type: str, budget: RequestBudget) -> list[SoldComp]:
+        """Recently sold homes (newest first, one page). home_type: 'multiFamily' or 'house'.
+
+        Live check 2026-11-21: records have sold price, beds/baths, coordinates, zestimate and
+        daysOnZillow (days since sale for sold homes); square footage is usually missing."""
+        payload = self._get("/scrape/zillow/listing",
+                            [("keyword", location), ("type", "sold"), ("homeTypes[]", home_type)], budget)
+        records, _ = _split_listing_payload(payload, 1)
+        comps, seen = [], set()
+        for rec in records:
+            price = _as_price(rec.get("price"))
+            raw = rec.get("addressRaw")
+            if price is None or not isinstance(raw, str):
+                continue
+            addr = _address(rec.get("address"), raw)
+            # Same building listed whole and per unit: keep one.
+            building = (normalize_street(addr.street or raw), addr.zip_code)
+            if building in seen:
+                continue
+            seen.add(building)
+            comps.append(SoldComp(
+                address=raw, price=price, beds=_as_float(rec.get("beds")), baths=_as_float(rec.get("baths")),
+                square_feet=_as_int(rec.get("area")), latitude=_as_float(rec.get("latitude")),
+                longitude=_as_float(rec.get("longitude")), days_since_sold=_as_int(rec.get("daysOnZillow")),
+                zestimate=_as_price(rec.get("zestimate")), url=rec.get("url"),
+            ))
+        return comps
 
     def enrich(self, prop: Property, budget: RequestBudget) -> Property:
         payload = self._get("/scrape/zillow/property", [("url", str(prop.source_url))], budget)

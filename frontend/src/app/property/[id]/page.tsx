@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { FeedbackButtons } from "@/components/FeedbackButtons";
 import { CategoryBar, ScoreBadge } from "@/components/Score";
 import { AgentSummaryBox } from "@/components/Verdict";
+import { OfferBox } from "@/components/Offer";
 import { getFeedbackMap, getLatestRun, getPriceHistory } from "@/lib/data";
 import { FEATURE_LABELS, SCENARIO_LABELS, SOURCE_LABELS, STATUS_LABELS, humanize, pct, shortDate, usd } from "@/lib/format";
 import type { FeatureName } from "@/lib/types";
@@ -68,6 +69,8 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
       )}
 
       {p.agent_summary && <AgentSummaryBox summary={p.agent_summary} />}
+
+      {p.offer && <OfferBox offer={p.offer} listPrice={p.price} />}
 
       {p.photo_urls.length > 0 && (
         <section className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-2">

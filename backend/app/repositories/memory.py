@@ -25,6 +25,7 @@ class MemoryRepository:
         self.sent: dict[str, set[str]] = {}
         self.opted_out: set[str] = set()
         self.rejected: set[str] = set()
+        self.sold_cache: dict[tuple[str, str], tuple] = {}
 
     def known_properties(self, keys: list[ListingKey]) -> dict[ListingKey, Property]:
         return {k: self.properties[self.listings[k]] for k in keys if k in self.listings}
@@ -100,3 +101,11 @@ class MemoryRepository:
 
     def rejected_listing_keys(self) -> set[tuple[str, str]]:
         return {k for k, pid in self.listings.items() if pid in self.rejected}
+
+    def get_sold_cache(self, town: str, home_type: str):
+        return self.sold_cache.get((town, home_type))
+
+    def save_sold_cache(self, town: str, home_type: str, comps) -> None:
+        from datetime import datetime, timezone
+
+        self.sold_cache[(town, home_type)] = (datetime.now(timezone.utc), list(comps))

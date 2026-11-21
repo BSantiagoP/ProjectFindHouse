@@ -53,6 +53,12 @@ export function PropertyCard({ r, feedback }: { r: RunResult; feedback?: Feedbac
                 <dd>{((primary.annual_rate ?? a!.rate) * 100).toFixed(2)}%</dd>
               </>
             )}
+            {p.offer?.status === "ok" && (
+              <>
+                <dt className="text-stone-500">Oferta sugerida</dt>
+                <dd className="font-semibold text-emerald-700">{usd(p.offer.target)}</dd>
+              </>
+            )}
             {p.drives?.filter((d) => d.minutes != null).map((d) => (
               <span key={d.address} className="contents">
                 <dt className="text-stone-500">En auto a {d.destination}</dt>

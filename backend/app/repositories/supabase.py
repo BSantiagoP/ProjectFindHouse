@@ -272,3 +272,17 @@ class SupabaseRepository:
             for r in self._req("GET", "provider_listings", params={"property_id": _in(chunk), "select": "provider,external_id"}):
                 keys.add((r["provider"], r["external_id"]))
         return keys
+
+    def get_sold_cache(self, town: str, home_type: str):
+        from app.models.analysis import SoldComp
+
+        rows = self._req("GET", "sold_comps_cache", params={"town": f"eq.{town}", "home_type": f"eq.{home_type}",
+                                                            "select": "fetched_at,comps"})
+        if not rows:
+            return None
+        return datetime.fromisoformat(rows[0]["fetched_at"]), [SoldComp.model_validate(c) for c in rows[0]["comps"]]
+
+    def save_sold_cache(self, town: str, home_type: str, comps) -> None:
+        self._upsert("sold_comps_cache", [{"town": town, "home_type": home_type,
+                                           "fetched_at": datetime.now(timezone.utc).isoformat(),
+                                           "comps": [c.model_dump(mode="json") for c in comps]}], "town,home_type")
