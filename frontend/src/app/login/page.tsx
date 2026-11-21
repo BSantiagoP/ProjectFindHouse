@@ -22,7 +22,12 @@ export default function LoginPage() {
     });
     if (error) {
       setState("error");
-      setMessage("Could not send a link to that address.");
+      const rateLimited = error.status === 429 || /rate limit/i.test(error.message);
+      setMessage(
+        rateLimited
+          ? "Too many sign-in emails were sent recently (email provider limit). Wait about an hour, then try once."
+          : "Could not send a link to that address.",
+      );
     } else {
       setState("sent");
     }
@@ -34,7 +39,7 @@ export default function LoginPage() {
       <p className="mt-1 text-sm text-stone-600">Private dashboard. Sign in with your email link.</p>
       {state === "sent" ? (
         <p className="mt-6 rounded-md bg-emerald-50 p-3 text-sm text-emerald-800">
-          Check your email for a sign-in link.
+          Check your email for a sign-in link. Open it on this device; you&apos;ll stay signed in afterwards.
         </p>
       ) : (
         <form onSubmit={submit} className="mt-6 space-y-3">
