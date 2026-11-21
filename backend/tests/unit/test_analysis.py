@@ -126,7 +126,7 @@ def test_rent_requested_per_rental_unit_as_apartment():
     est = client.estimate(apply_analysis(mf(), llm_result(), model="m"), OwnerUnit.LARGEST)
     assert est.status == "estimated" and est.monthly_rent_total == 2300
     assert len(seen) == 1
-    assert seen[0]["propertyType"] == "Apartment" and seen[0]["bedrooms"] == "2"
+    assert seen[0]["propertyType"] == "Multi-Family" and seen[0]["bedrooms"] == "2"
     assert repo.api_usage[("rentcast", "2026-11")] == 1
 
 
@@ -509,3 +509,34 @@ def test_locationiq_paces_and_retries_rate_limit():
                            sleep=slept.append, clock=lambda: 0.0)
     minutes, _ = liq.drive(40.8, -74.0, 40.83, -73.99)
     assert minutes == 2 and any(s >= 1.5 for s in slept)
+
+
+
+def test_rent_saves_comparables_and_method():
+    from app.providers.rentcast import RENT_METHOD
+
+    comps = [{"addressLine1": f"{i} Olympia Ave", "addressLine2": "Unit 2", "city": "Cliffside Park", "price": 2300 + i,
+              "bedrooms": 2, "bathrooms": 1, "squareFootage": 1100, "distance": 0.29, "daysOld": 1, "propertyType": "Multi-Family"}
+             for i in range(12)]
+    client, _ = rentcast(lambda r: httpx.Response(200, json={"rent": 2400, "rentRangeLow": 2200, "rentRangeHigh": 2600, "comparables": comps}))
+    est = client.estimate(apply_analysis(mf(), llm_result(), model="m"), OwnerUnit.LARGEST)
+    u = est.rental_units[0]
+    assert est.method == RENT_METHOD and len(u.comparables) == 8
+    assert u.comparables[0].address == "0 Olympia Ave, Unit 2, Cliffside Park" and u.comparables[0].rent == 2300
+
+
+def test_legacy_apartment_estimate_is_redone_once():
+    from app.models.analysis import RentEstimate, UnitRent
+
+    calls = []
+    client, repo = rentcast(lambda r: calls.append(r.url.params["propertyType"]) or httpx.Response(200, json={"rent": 2500}))
+    p = mf(features=PropertyFeatures(garage=present(), laundry=present()))
+    p = p.model_copy(update={"rent_estimate": RentEstimate(status="estimated", monthly_rent_total=3600,
+                                                           rental_units=[UnitRent(label="x", bedrooms=2, bathrooms=1, rent=3600)])})
+    prefs = SearchPreferences()
+    run = DiscoveryRun(id="r", started_at=None, status="succeeded", results=[EvaluatedProperty(p, apply_hard_filters(p, prefs, TODAY))])
+    deps = AnalysisDeps(llm=FakeLLM(), llm_model="m", rentcast=client, stops=FakeStops(), rate=RATE, today=TODAY)
+    run = run_analysis(run, prefs, deps)
+    assert calls == ["Multi-Family"] and run.results[0].property.rent_estimate.monthly_rent_total == 2500
+    run_analysis(run, prefs, deps)
+    assert calls == ["Multi-Family"]  # not redone again

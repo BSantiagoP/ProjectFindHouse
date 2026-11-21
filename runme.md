@@ -51,13 +51,19 @@ Every feature shows **where it came from**:
   - The unit layout comes from the listing text with verified quotes. "Basement suites" are not
     counted as legal rental units.
   - If bedrooms per unit aren't stated, rent is **not estimated** rather than guessed.
-  - Each rent shows RentCast's low–high range.
+  - **Compared against units in 2–4 family houses** (RentCast "Multi-Family"), not apartment
+    complexes. A check on 2026-11-20 showed "Apartment" comparables came 11 of 15 from one large
+    complex (520 Cliff St, Fairview) and overstated a 2-bed by about $600–$1,000/month ($3,510 vs.
+    $2,900). Rents were re-estimated with the corrected method.
+  - Each rent shows RentCast's low–high range and **up to 8 comparable rentals** (address, rent,
+    beds/baths, size, distance, age) under "Ver rentas comparables", so you can judge it yourself.
 - **Then, conservatively, the app deducts:** 5% vacancy, 10% repairs/management, 5% reserves.
   So "net rent" is 80% of the estimate.
 - **Limits:**
   - It's an estimate, not a lease. Real rent depends on unit condition, and the actual tenant
     situation (some listings are tenant-occupied until 2027).
-  - Check a few comparable listings or ask a local agent before counting on it.
+  - Glance at the comparables: if they're bigger, newer or have more baths than the unit, the
+    real rent is likely lower. A local agent can confirm.
 
 ## Financing (3 scenarios)
 
@@ -227,6 +233,6 @@ very little of that.
 
 ## How it's tested
 
-- 166 automated tests cover every rule above.
+- 168 automated tests cover every rule above.
 - Tests block all real network calls.
 - Real-data checks were run and the bugs they found were fixed. See the git history for details.

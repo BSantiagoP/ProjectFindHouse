@@ -70,6 +70,19 @@ class LLMAnalysis(BaseModel):
     analyzed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class RentComp(BaseModel):
+    """A nearby rental listing RentCast used for the estimate."""
+
+    address: str
+    rent: int | None
+    bedrooms: float | None = None
+    bathrooms: float | None = None
+    square_feet: int | None = None
+    distance_mi: float | None = None
+    days_old: int | None = None
+    property_type: str | None = None
+
+
 class UnitRent(BaseModel):
     label: str
     bedrooms: int | None
@@ -77,6 +90,7 @@ class UnitRent(BaseModel):
     rent: int | None
     range_low: int | None = None
     range_high: int | None = None
+    comparables: list[RentComp] = Field(default_factory=list)
 
 
 class RentEstimate(BaseModel):
@@ -86,6 +100,8 @@ class RentEstimate(BaseModel):
     rental_units: list[UnitRent] = Field(default_factory=list)
     monthly_rent_total: int | None = None
     source: str = "rentcast"
+    # Which comparables were used. None = legacy "Apartment" comps (overstated rent; re-estimated).
+    method: str | None = None
     estimated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 

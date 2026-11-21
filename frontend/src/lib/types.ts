@@ -62,7 +62,23 @@ export interface Property {
     status: "estimated" | "not_estimated";
     reason: string | null;
     owner_unit: string | null;
-    rental_units: { label: string; bedrooms: number | null; rent: number | null; range_low: number | null; range_high: number | null }[];
+    rental_units: {
+      label: string;
+      bedrooms: number | null;
+      bathrooms?: number | null;
+      rent: number | null;
+      range_low: number | null;
+      range_high: number | null;
+      comparables?: {
+        address: string;
+        rent: number | null;
+        bedrooms: number | null;
+        bathrooms: number | null;
+        square_feet: number | null;
+        distance_mi: number | null;
+        days_old: number | null;
+      }[];
+    }[];
     monthly_rent_total: number | null;
   } | null;
   drives: { destination: string; address: string; minutes: number | null; miles: number | null }[];

@@ -15,7 +15,7 @@ from langgraph.graph import END, START, StateGraph
 
 from app.models.preferences import SearchPreferences
 from app.models.property import PropertyType
-from app.providers.rentcast import RentCastClient
+from app.providers.rentcast import RENT_METHOD, RentCastClient
 from app.services.commute import StopFinder, estimate_commute
 from app.models.analysis import CommuteEstimate
 from app.services.description_analysis import PROMPT_VERSION, StructuredLLM, analyze_description, reset_text_features
@@ -116,7 +116,8 @@ def build_graph(deps: AnalysisDeps):
             needs_rent = (
                 ev.filter.status is FilterStatus.ELIGIBLE
                 and p.property_type is not PropertyType.SINGLE_FAMILY
-                and (p.rent_estimate is None or p.rent_estimate.status != "estimated")
+                and (p.rent_estimate is None or p.rent_estimate.status != "estimated"
+                     or p.rent_estimate.method != RENT_METHOD)  # legacy Apartment-comps estimates are redone
             )
             if needs_rent and deps.rentcast is not None:
                 p = p.model_copy(update={"rent_estimate": deps.rentcast.estimate(p, prefs.owner_unit)})

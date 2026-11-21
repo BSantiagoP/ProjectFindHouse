@@ -155,11 +155,30 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
               <li className="text-stone-600">Tú vives en: {p.rent_estimate.owner_unit}</li>
               {p.rent_estimate.rental_units.map((u) => (
                 <li key={u.label}>
-                  {u.label} ({u.bedrooms} rec.): <b>{usd(u.rent)}</b>/mes
+                  {u.label} ({u.bedrooms} rec.{u.bathrooms ? `, ${u.bathrooms} baño${u.bathrooms === 1 ? "" : "s"}` : ""}): <b>{usd(u.rent)}</b>/mes
                   <span className="text-stone-500"> (rango {usd(u.range_low)}–{usd(u.range_high)})</span>
+                  {u.comparables && u.comparables.length > 0 && (
+                    <details className="mt-1">
+                      <summary className="cursor-pointer text-xs text-blue-700">
+                        Ver {u.comparables.length} rentas comparables
+                      </summary>
+                      <ul className="mt-1 space-y-0.5 text-xs text-stone-600">
+                        {u.comparables.map((c, i) => (
+                          <li key={`${c.address}-${i}`}>
+                            <b>{usd(c.rent)}</b> · {c.bedrooms ?? "?"} rec./{c.bathrooms ?? "?"} baños
+                            {c.square_feet ? ` · ${c.square_feet.toLocaleString("es-US")} pies²` : ""}
+                            {c.distance_mi != null ? ` · ${c.distance_mi} mi` : ""}
+                            {c.days_old != null ? ` · hace ${c.days_old} días` : ""} — {c.address}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
                 </li>
               ))}
-              <li className="pt-1 text-xs text-stone-500">Estimación de RentCast solo para la(s) unidad(es) a alquilar.</li>
+              <li className="pt-1 text-xs text-stone-500">
+                Estimación de RentCast solo para la(s) unidad(es) a alquilar, comparada con unidades en casas de 2–4 familias cercanas.
+              </li>
             </ul>
           ) : (
             <p className="mt-2 text-sm text-stone-600">{p.rent_estimate?.reason ?? "No estimada"}</p>

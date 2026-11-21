@@ -1,8 +1,11 @@
 """RentCast long-term rent estimates for the RENTAL units only (owner lives in one unit).
 
-Live check 2026-11-20: a whole-property request for a 2-family returned whole-building rent
-($4,260 for 5bd/3ba), which would overstate rent offset. So we request per rental unit,
-passing that unit's bedrooms/bathrooms, as an apartment-style rental.
+Live checks 2026-11-20:
+- A whole-property request for a 2-family returned whole-building rent ($4,260 for 5bd/3ba),
+  which would overstate rent offset, so we request per rental unit with its bedrooms/bathrooms.
+- propertyType=Apartment drew 11 of 15 comps from one large apartment complex ($3,510 for a
+  2-bed); propertyType=Multi-Family drew units in 2-4 family houses ($2,900). Units in a
+  2-family house compete with the latter, so we use Multi-Family comparables.
 Every request is reserved against a monthly cap first (overage is billed per request).
 """
 
@@ -13,13 +16,16 @@ from typing import Any
 
 import httpx
 
-from app.models.analysis import RentEstimate, UnitLayout, UnitRent
+from app.models.analysis import RentComp, RentEstimate, UnitLayout, UnitRent
 from app.models.preferences import OwnerUnit
 from app.models.property import Property, PropertyType
 
 log = logging.getLogger(__name__)
 
 ReserveFn = Callable[[str, str, int], bool]  # (provider, period, limit) -> reserved?
+
+RENT_METHOD = "multi_family_comps_v2"
+MAX_COMPS_SAVED = 8
 
 
 class RentCastAuthError(RuntimeError):
@@ -42,7 +48,7 @@ class RentCastClient:
         """None means the monthly cap is reached (no request made)."""
         if not self._reserve(self.name, self._today().strftime("%Y-%m"), self._cap):
             return None
-        params: dict[str, Any] = {"address": address, "propertyType": "Apartment", "compCount": 10}
+        params: dict[str, Any] = {"address": address, "propertyType": "Multi-Family", "compCount": 15}
         if unit.bedrooms is not None:
             params["bedrooms"] = unit.bedrooms
         if unit.bathrooms is not None:
@@ -54,9 +60,20 @@ class RentCastClient:
         if resp.status_code != 200:
             raise RuntimeError(f"RentCast HTTP {resp.status_code}: {resp.text[:200]}")
         d = resp.json()
+        comps = [
+            RentComp(
+                address=", ".join(x for x in (c.get("addressLine1"), c.get("addressLine2"), c.get("city")) if x),
+                rent=_int(c.get("price")), bedrooms=c.get("bedrooms"), bathrooms=c.get("bathrooms"),
+                square_feet=_int(c.get("squareFootage")),
+                distance_mi=round(float(c["distance"]), 2) if c.get("distance") is not None else None,
+                days_old=_int(c.get("daysOld")), property_type=c.get("propertyType"),
+            )
+            for c in (d.get("comparables") or [])[:MAX_COMPS_SAVED]
+        ]
         return UnitRent(
             label=unit.label, bedrooms=unit.bedrooms, bathrooms=unit.bathrooms,
             rent=_int(d.get("rent")), range_low=_int(d.get("rentRangeLow")), range_high=_int(d.get("rentRangeHigh")),
+            comparables=comps,
         )
 
     def estimate(self, prop: Property, owner_unit: OwnerUnit) -> RentEstimate:
@@ -87,7 +104,7 @@ class RentCastClient:
             return RentEstimate(status="not_estimated", reason="RentCast no devolvió una estimación",
                                 owner_unit=owner, rental_units=results)
         return RentEstimate(status="estimated", owner_unit=owner, rental_units=results,
-                            monthly_rent_total=sum(r.rent for r in results))
+                            monthly_rent_total=sum(r.rent for r in results), method=RENT_METHOD)
 
 
 def rental_units(prop: Property, owner_unit: OwnerUnit) -> tuple[str | None, list[UnitLayout]] | None:
