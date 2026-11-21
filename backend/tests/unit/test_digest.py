@@ -158,3 +158,21 @@ def test_preference_limits_enforced():
     for bad in ({"max_price": 50}, {"target_monthly_cost": 10}, {"towns": []}):
         with pytest.raises(ValidationError):
             SearchPreferences(**bad)
+
+
+def test_links_point_to_dashboard_when_configured():
+    run = ranked_run(2)
+    items = [ev for ev in run.results if ev.rank]
+    body = build_digest(items, dashboard_url="https://homescout.example.app/")
+    assert "https://homescout.example.app/property/pid1" in body and "example.com/listing" not in body
+    assert "example.com/listing" in build_digest(items)  # falls back to the listing URL
+
+
+def test_only_dashboard_users_get_dashboard_links():
+    other = Recipient("RECIPIENT2", "+12015550100")
+    sender = FakeSender()
+    send_digest(ranked_run(1), [ME, other], MemoryRepository(), sender,
+                dashboard_url="https://homescout.example.app", dashboard_recipients={"RECIPIENT1"})
+    mine, theirs = sender.sent[0][1], sender.sent[1][1]
+    assert "homescout.example.app/property/" in mine
+    assert "homescout.example.app" not in theirs and "example.com/listing" in theirs

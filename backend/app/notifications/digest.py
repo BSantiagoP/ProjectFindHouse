@@ -73,7 +73,14 @@ def _town_short(ev: EvaluatedProperty) -> str:
     return ev.property.town or (ev.property.address.city or "")
 
 
-def format_line(i: int, ev: EvaluatedProperty, include_links: bool = True) -> str:
+def property_link(ev: EvaluatedProperty, dashboard_url: str | None) -> str:
+    """Dashboard report link when configured (shorter, behind login), else the listing URL."""
+    if dashboard_url and ev.property_id:
+        return f"{dashboard_url.rstrip('/')}/property/{ev.property_id}"
+    return str(ev.property.source_url)
+
+
+def format_line(i: int, ev: EvaluatedProperty, include_links: bool = True, dashboard_url: str | None = None) -> str:
     p, a = ev.property, ev.analysis
     kind = f"{p.units}-fam" if p.units and p.units > 1 else "1-fam"
     parts = [f"{i}) {_town_short(ev)} {kind} ${p.price:,}", f"{a.score:.0f}/100"]
@@ -86,13 +93,13 @@ def format_line(i: int, ev: EvaluatedProperty, include_links: bool = True) -> st
     if p.commute and p.commute.total_minutes:
         parts.append(f"~{p.commute.total_minutes}min to WTC")
     line = " | ".join(parts)
-    return f"{line}\n{p.source_url}" if include_links else line
+    return f"{line}\n{property_link(ev, dashboard_url)}" if include_links else line
 
 
-def build_digest(items: list[EvaluatedProperty], include_links: bool = True) -> str:
+def build_digest(items: list[EvaluatedProperty], include_links: bool = True, dashboard_url: str | None = None) -> str:
     n = len(items)
     header = f"HomeScout: {n} new match{'es' if n != 1 else ''}"
-    body = "\n".join(format_line(i, ev, include_links) for i, ev in enumerate(items, start=1))
+    body = "\n".join(format_line(i, ev, include_links, dashboard_url) for i, ev in enumerate(items, start=1))
     return f"{header}\n{body}\n{OPT_OUT_FOOTER}"
 
 
@@ -110,7 +117,10 @@ class DeliveryReport:
 
 
 def send_digest(run: DiscoveryRun, recipients: list[Recipient], store: NotificationStore, sender: SmsSender,
-                *, limit: int = 5, include_links: bool = True) -> list[DeliveryReport]:
+                *, limit: int = 5, include_links: bool = True, dashboard_url: str | None = None,
+                dashboard_recipients: set[str] | None = None) -> list[DeliveryReport]:
+    """dashboard_recipients: who gets dashboard links (they must be able to log in);
+    everyone else gets listing links."""
     reports: list[DeliveryReport] = []
     rejected = store.rejected_property_ids()  # rejected in the dashboard: never texted
     for r in recipients:
@@ -125,7 +135,8 @@ def send_digest(run: DiscoveryRun, recipients: list[Recipient], store: Notificat
         if not store.reserve_notification(run.id, r.key, r.last2, ids):
             reports.append(DeliveryReport(r.key, "already_handled"))
             continue
-        result = sender.send(r.phone, build_digest(items, include_links))
+        result = sender.send(r.phone, build_digest(items, include_links,
+                                                 dashboard_url if r.key in (dashboard_recipients or set()) else None))
         if result.sid:
             store.finish_notification(run.id, r.key, "sent", result.sid, None, ids)
             reports.append(DeliveryReport(r.key, "sent", len(items)))

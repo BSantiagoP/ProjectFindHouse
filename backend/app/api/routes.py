@@ -169,7 +169,9 @@ def send_latest_digest(repo: RepoDep, settings: Annotated[Settings, Depends(get_
     if run is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No search run yet")
     reports = send_digest(run, load_recipients(), repo, build_sender(settings),
-                          limit=repo.get_preferences().max_recommendations)
+                          limit=repo.get_preferences().max_recommendations,
+                          dashboard_url=settings.dashboard_url or None,
+                          dashboard_recipients={k.strip() for k in settings.dashboard_recipients.split(',') if k.strip()})
     return [{"recipient": r.recipient_key, "status": r.status, "count": r.count, "error": r.error} for r in reports]
 
 

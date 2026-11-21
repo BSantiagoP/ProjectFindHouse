@@ -68,7 +68,9 @@ def main(argv: list[str] | None = None) -> int:
     if run.status == "failed":
         return 1
     if settings.sms_enabled:
-        for r in send_digest(run, load_recipients(), repo, build_sender(settings), limit=prefs.max_recommendations):
+        for r in send_digest(run, load_recipients(), repo, build_sender(settings), limit=prefs.max_recommendations,
+                                   dashboard_url=settings.dashboard_url or None,
+                          dashboard_recipients={k.strip() for k in settings.dashboard_recipients.split(',') if k.strip()}):
             log.info("SMS %s: %s (%d properties)%s", r.recipient_key, r.status, r.count, f" error={r.error}" if r.error else "")
     else:
         log.info("SMS disabled (SMS_ENABLED=false); digest not sent")
