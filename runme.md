@@ -81,29 +81,19 @@ against hand calculations ($100,000 at 6% = $599.55/month).
     not an issue today.
   - A lender may also count only ~75% of projected rent when qualifying you.
 
-## Commute to 7 WTC
+## Commute: driving time to 576 Bergen Blvd, Ridgefield
 
-- **Method:**
-  - A researched stop-to-WTC time for each town (from trip planners and NJ Transit route info).
-  - **Plus** the walk to the nearest stop that has a **New York-bound** NJ Transit bus, or to the
-    rail station (Lyndhurst). Stops come from NJ Transit's official GTFS data.
-  - Walk = straight-line distance × 1.25, at 80 m per minute.
-- **Limits:**
-  - This is an estimate, **not door-to-door routing** (Google Maps is not connected).
-  - Rush-hour traffic, transfer waits and service changes vary.
-  - Town times are editable in Preferencias if your own experience differs.
-
-## Driving time to 576 Bergen Blvd, Ridgefield
-
-- **Source:** the road route from each home to the address, using the free OpenStreetMap routing
-  service (OSRM). The destination's coordinates come from the official US Census geocoder.
+- **This is the only commute measured.** 7 WTC was dropped on 2026-11-20.
+- **Source:** the road route from each home to the address, using **LocationIQ Directions**
+  (OpenStreetMap roads; free plan, 5,000 requests/day). If LocationIQ is down, the public OSRM
+  server is used as a backup, and each time records which service produced it.
+- **Destination coordinates** come from the official US Census geocoder.
 - **Why it's reasonable:** it uses real road distances and speed limits, not straight lines.
 - **Limits:** it is **free-flow time, with no traffic**. Rush hour will be longer, sometimes much
   longer on Route 46 or Route 1&9.
-- **How it's scored:** the commute category averages two sub-scores equally. 7 WTC by transit
-  scores 10 at 40 min and 0 at 90 min. Ridgefield by car scores 10 at 5 min and 0 at 35 min.
-  The Ridgefield scale is an **assumption** that leaves room for traffic. If either time is
-  missing, that half counts as 0.
+- **How it's scored:** the location category (25% of the score) uses this time only: 10/10 at
+  5 min or less, 0 at 35 min or more, linear in between. The scale is an **assumption** that leaves
+  room for traffic. If a time couldn't be computed, the category counts as 0.
 
 ## Features from photos (AI)
 
@@ -162,11 +152,11 @@ bottom of the page to restore one.
    current lease status.
 4. **Visit:** confirm laundry, parking, basement and bathroom, especially anything marked
    "Fotos (IA)" or "Probable según fotos".
-5. **Do the commute once at rush hour** from your top choice.
+5. **Drive to Ridgefield once at rush hour** from your top choice.
 6. **Get an inspection:** condition, and whether a basement unit is legal.
 
 ## How it's tested
 
-- 162 automated tests cover every rule above.
+- 166 automated tests cover every rule above.
 - Tests block all real network calls.
 - Real-data checks were run and the bugs they found were fixed. See the git history for details.

@@ -121,7 +121,10 @@ def score_property(prop: Property, prefs: SearchPreferences, rate: MortgageRate)
     # A destination that couldn't be estimated counts as 0 (never rewarded).
     parts: list[tuple[float | None, str]] = []
     c = prop.commute
-    if c and c.total_minutes is not None:
+    has_transit_dest = any(d.mode.value == "transit" for d in prefs.commute_destinations)
+    if not has_transit_dest:
+        pass
+    elif c and c.total_minutes is not None:
         parts.append((_lerp_score(c.total_minutes, best=40, worst=90),
                       f"~{c.total_minutes} min en transporte a {c.destination} ({c.walk_minutes} min caminando a {c.nearest_stop}, luego {c.route})"))
     else:
@@ -135,7 +138,7 @@ def score_property(prop: Property, prefs: SearchPreferences, rate: MortgageRate)
                           f"~{d.minutes} min en auto a {d.destination} (sin tráfico)"))
         else:
             parts.append((None, f"tiempo en auto a {dest.label} no estimado"))
-    if all(sc is None for sc, _ in parts):
+    if not parts or all(sc is None for sc, _ in parts):
         cats.append(CategoryScore(name="location_commute", weight=w.location_commute, score=None,
                                   reason="Trayecto no estimado (sin coordenadas o sin parada cercana)"))
         missing.append("commute")

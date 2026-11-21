@@ -52,12 +52,6 @@ export function PropertyCard({ r, feedback }: { r: RunResult; feedback?: Feedbac
                 <dd>~{d.minutes} min</dd>
               </span>
             ))}
-            {p.commute?.total_minutes != null && (
-              <>
-                <dt className="text-stone-500">Trayecto a WTC</dt>
-                <dd>~{p.commute.total_minutes} min</dd>
-              </>
-            )}
             {rentKnown && (
               <>
                 <dt className="text-stone-500">Ingreso por renta</dt>

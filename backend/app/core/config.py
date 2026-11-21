@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     twilio_phone_number: str = ""
     twilio_messaging_service_sid: str = ""  # service holding the verified A2P 10DLC campaign
     sms_enabled: bool = False  # sending requires explicit opt-in
+    locationiq_api_key: str = ""  # driving times (primary); OSRM demo server is the fallback
     dashboard_url: str = ""  # e.g. https://homescout-delta.vercel.app; SMS links open the report there
     # Recipients who can log in to the dashboard get dashboard links; others get listing links.
     dashboard_recipients: str = "RECIPIENT1"

@@ -68,11 +68,7 @@ class SearchPreferences(BaseModel):
     max_units: int = 4
     commute_destinations: list[CommuteDestination] = Field(
         default_factory=lambda: [
-            CommuteDestination(
-                label="7 WTC",
-                address="7 World Trade Center, 250 Greenwich St, New York, NY 10007",
-            ),
-            # Added 2026-11-20; coordinates from the US Census geocoder.
+            # 2026-11-20: 7 WTC dropped; commute = driving to Ridgefield. Coordinates: US Census geocoder.
             CommuteDestination(
                 label="576 Bergen Blvd",
                 address="576 Bergen Blvd, Ridgefield, NJ 07657",

@@ -184,8 +184,11 @@ def scored_property(rent=2300):
 
     p = apply_analysis(mf(price=700_000, annual_tax=12_000), llm_result(condition=Condition.UPDATED,
                                                                          condition_quote="Spacious two-family home"), model="m")
+    from app.models.analysis import DriveEstimate
+
     p = p.model_copy(update={
         "commute": estimate_commute(p, SearchPreferences(), FakeStops(400)),
+        "drives": [DriveEstimate(destination="576 Bergen Blvd", address="576 Bergen Blvd, Ridgefield, NJ 07657", minutes=10, miles=3.0)],
         "rent_estimate": RentEstimate(status="estimated", rental_units=[UnitRent(label="second floor", bedrooms=2, bathrooms=1, rent=rent)],
                                       monthly_rent_total=rent),
     })
@@ -201,7 +204,7 @@ def test_score_is_weighted_sum_and_fully_confident():
 
 
 def test_unknowns_score_zero_and_lower_confidence():
-    p = scored_property().model_copy(update={"rent_estimate": None, "commute": None})
+    p = scored_property().model_copy(update={"rent_estimate": None, "commute": None, "drives": []})
     a = score_property(p, SearchPreferences(), RATE)
     by = {c.name: c for c in a.categories}
     assert by["rental_potential"].score is None and by["location_commute"].score is None
@@ -429,15 +432,54 @@ def test_drive_time_to_ridgefield_computed_once():
     assert router.calls == 1 and again == drives
 
 
-def test_commute_score_averages_wtc_transit_and_ridgefield_drive():
+def test_commute_score_is_ridgefield_drive_only():
     from app.models.analysis import DriveEstimate
 
-    p = scored_property()  # ~52 min to WTC -> transit sub-score 7.6
-    near = p.model_copy(update={"drives": [DriveEstimate(destination="576 Bergen Blvd", address="576 Bergen Blvd, Ridgefield, NJ 07657", minutes=5, miles=1.0)]})
-    cat = lambda prop: next(c for c in score_property(prop, SearchPreferences(), RATE).categories if c.name == "location_commute")
-    assert cat(near).score == pytest.approx((7.6 + 10) / 2, abs=0.05)
-    assert cat(p).score == pytest.approx(7.6 / 2, abs=0.05)  # unknown drive counts as 0
-    assert "en auto a 576 Bergen Blvd" in cat(near).reason
+    p = scored_property()  # 10 min drive -> (35-10)/30*10 = 8.3
+    cat = lambda prop, prefs=SearchPreferences(): next(c for c in score_property(prop, prefs, RATE).categories if c.name == "location_commute")
+    assert cat(p).score == pytest.approx(8.3, abs=0.05)
+    assert "WTC" not in cat(p).reason and "en auto a 576 Bergen Blvd" in cat(p).reason
+    assert cat(p.model_copy(update={"drives": []})).score is None  # unknown -> not scored
+
+
+def test_transit_destination_still_supported_if_added_back():
+    from app.models.preferences import CommuteDestination
+
+    prefs = SearchPreferences()
+    prefs = prefs.model_copy(update={"commute_destinations": [
+        CommuteDestination(label="7 WTC", address="7 WTC, New York, NY"), *prefs.commute_destinations]})
+    c = next(c for c in score_property(scored_property(), prefs, RATE).categories if c.name == "location_commute")
+    assert c.score == pytest.approx((7.6 + 8.3) / 2, abs=0.1)
+
+
+def test_locationiq_errors_never_leak_key_and_fallback_used():
+    from app.services.driving import FallbackRouter, LocationIQRouter, OsrmRouter
+
+    liq = LocationIQRouter("SECRETKEY123", client=httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(401))))
+    osrm = OsrmRouter(client=httpx.Client(transport=httpx.MockTransport(
+        lambda r: httpx.Response(200, json={"code": "Ok", "routes": [{"duration": 600, "distance": 4828}]}))))
+    fb = FallbackRouter(liq, osrm)
+    minutes, miles = fb.drive(40.8, -74.0, 40.83, -73.99)
+    assert round(minutes) == 10 and round(miles, 1) == 3.0 and fb.last_used == "osrm"
+    try:
+        liq.drive(40.8, -74.0, 40.83, -73.99)
+    except RuntimeError as exc:
+        assert "SECRETKEY123" not in str(exc)
+
+
+def test_switching_to_locationiq_recomputes_osrm_times_once():
+    from app.models.analysis import DriveEstimate
+    from app.services.driving import estimate_drives
+
+    class Liq(FakeRouter):
+        name = "locationiq"
+
+    old = [DriveEstimate(destination="576 Bergen Blvd", address="576 Bergen Blvd, Ridgefield, NJ 07657", minutes=4, miles=1.0, source="osrm")]
+    router = Liq(minutes=5.0, miles=1.3)
+    fresh = estimate_drives(mf().model_copy(update={"drives": old}), SearchPreferences(), router)
+    assert router.calls == 1 and fresh[0].source == "locationiq" and fresh[0].minutes == 5
+    estimate_drives(mf().model_copy(update={"drives": fresh}), SearchPreferences(), router)
+    assert router.calls == 1
 
 
 def test_scenarios_report_interest_rate_used():
@@ -456,3 +498,14 @@ def test_discarded_home_not_ranked_and_next_one_moves_up():
                         rejected_keys={("test", "b")})
     run = run_analysis(run, prefs, deps)
     assert {ev.property.external_id: ev.rank for ev in run.results} == {"a": 1, "b": None}
+
+
+def test_locationiq_paces_and_retries_rate_limit():
+    from app.services.driving import LocationIQRouter
+
+    responses = iter([httpx.Response(429), httpx.Response(200, json={"code": "Ok", "routes": [{"duration": 120, "distance": 1609}]})])
+    slept = []
+    liq = LocationIQRouter("k", client=httpx.Client(transport=httpx.MockTransport(lambda r: next(responses))),
+                           sleep=slept.append, clock=lambda: 0.0)
+    minutes, _ = liq.drive(40.8, -74.0, 40.83, -73.99)
+    assert minutes == 2 and any(s >= 1.5 for s in slept)

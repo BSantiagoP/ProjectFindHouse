@@ -104,7 +104,10 @@ def build_graph(deps: AnalysisDeps):
         for ev in state["candidates"]:
             p = ev.property
             current_source = CommuteEstimate.model_fields["source"].default
-            if p.commute is None or p.commute.total_minutes is None or p.commute.source != current_source:
+            has_transit_dest = any(d.mode.value == "transit" for d in prefs.commute_destinations)
+            if not has_transit_dest:
+                p = p.model_copy(update={"commute": None})  # 7 WTC dropped 2026-11-20
+            elif p.commute is None or p.commute.total_minutes is None or p.commute.source != current_source:
                 p = p.model_copy(update={"commute": estimate_commute(p, prefs, deps.stops)})
                 if p.commute and (p.commute.nearest_stop or "").startswith("lookup failed"):
                     errors.append(f"Commute not estimated for {p.address.raw}: {p.commute.nearest_stop}")

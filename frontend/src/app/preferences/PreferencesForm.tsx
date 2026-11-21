@@ -53,8 +53,7 @@ export function PreferencesForm({ prefs }: { prefs: Preferences }) {
       </fieldset>
 
       <fieldset>
-        <legend className={label}>Pueblos y tiempo en transporte a 7 WTC</legend>
-        <p className={hint}>Minutos desde la parada de autobús a NYC o estación de tren del pueblo hasta 7 WTC; la caminata se suma por casa.</p>
+        <legend className={label}>Pueblos</legend>
         <div className="mt-2 divide-y divide-stone-100">
           {towns.map((t) => (
             <div key={t} className="flex items-center gap-3 py-2">
@@ -62,12 +61,6 @@ export function PreferencesForm({ prefs }: { prefs: Preferences }) {
                 <input type="checkbox" name="towns" value={t} defaultChecked={prefs.towns.includes(t)} />
                 {t}
               </label>
-              {prefs.town_commutes[t] && (
-                <label className="flex items-center gap-1 text-sm text-stone-600">
-                  <input type="number" name={`commute:${t}`} min={5} max={240} defaultValue={prefs.town_commutes[t].minutes} className="w-20 rounded-md border border-stone-300 px-2 py-1" />
-                  min
-                </label>
-              )}
             </div>
           ))}
         </div>

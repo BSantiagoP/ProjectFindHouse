@@ -166,21 +166,19 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
           )}
         </section>
         <section className="rounded-xl border bg-white p-4 shadow-sm">
-          <h2 className="font-semibold">Trayecto</h2>
-          {p.commute?.total_minutes != null ? (
+          <h2 className="font-semibold">Trayecto en auto</h2>
+          {p.drives?.length ? (
             <ul className="mt-2 space-y-1 text-sm">
-              <li>
-                <b>~{p.commute.total_minutes} min</b> a {p.commute.destination}
-              </li>
-              <li className="text-stone-600">{p.commute.walk_minutes} min caminando a {p.commute.nearest_stop}</li>
-              <li className="text-stone-600">luego {p.commute.route} (~{p.commute.town_minutes} min)</li>
-              <li className="pt-1 text-xs text-stone-500">Estimación por pueblo + paradas de NJ Transit; no es una ruta puerta a puerta.</li>
-              {p.drives?.map((d) => (
-                <li key={d.address} className="pt-2">
-                  <b>{d.minutes != null ? `~${d.minutes} min` : "No estimado"}</b> en auto a {d.address}
-                  {d.miles != null && <span className="text-stone-500"> ({d.miles} mi, sin tráfico)</span>}
+              {p.drives.map((d) => (
+                <li key={d.address}>
+                  <b>{d.minutes != null ? `~${d.minutes} min` : "No estimado"}</b> a {d.address}
+                  {d.miles != null && <span className="text-stone-500"> ({d.miles} mi)</span>}
                 </li>
               ))}
+              <li className="pt-1 text-xs text-stone-500">
+                Ruta por carretera sin tráfico; en hora pico será más largo. Rutas:{" "}
+                <a href="https://locationiq.com" target="_blank" rel="noopener noreferrer" className="underline">LocationIQ.com</a>
+              </li>
             </ul>
           ) : (
             <p className="mt-2 text-sm text-stone-600">No estimado</p>
