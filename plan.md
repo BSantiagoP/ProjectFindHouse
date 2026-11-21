@@ -26,7 +26,7 @@ HomeScout AI will search newly listed houses in selected New Jersey towns, prior
 | Search schedule | Every other day, from 8:00 AM Eastern; runs locally on the Mac (launchd hourly check catches up after sleep) |
 | Maximum recommendations | 5 per report; fewer if insufficient matches |
 | Notification recipients | 3 consenting phone numbers, configured securely |
-| Delivery | SMS summary with authenticated dashboard link |
+| Delivery | Dashboard only (https://homescout-delta.vercel.app); SMS turned off 2026-11-20, code kept (SMS_ENABLED=false) |
 
 These are working defaults and must be confirmed before production. Unknown property features should be flagged for verification, not silently treated as absent or present. For unknown required fields (laundry, parking, basement), the photo analyzer runs first; if they are still unknown, the property goes to a verification queue and is not texted.
 
@@ -384,7 +384,7 @@ Five towns searched daily may require ~150 search calls in a 30-day month **befo
 | AI workflow | LangGraph |
 | Database | Supabase PostgreSQL |
 | Frontend | Next.js |
-| SMS | Twilio, three recipients |
+| SMS | Off by choice (2026-11-20); Twilio A2P verified, can be re-enabled with SMS_ENABLED=true |
 | Schedule | Every other day from 8 AM Eastern, local Mac (decided 2026-11-20) |
 | Max properties | Five |
 | Max purchase price | $900,000 |

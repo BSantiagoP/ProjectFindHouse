@@ -9,10 +9,13 @@ Uses the service-role key from .env, so it only works on this machine.
 
 import getpass
 import sys
+from pathlib import Path
 
 import httpx
 
-from app.core.config import Settings
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # backend/, so `app` imports
+
+from app.core.config import Settings  # noqa: E402
 
 MIN_LENGTH = 12
 
