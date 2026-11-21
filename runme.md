@@ -66,7 +66,7 @@ against hand calculations ($100,000 at 6% = $599.55/month).
 
 | Input | Value | Source / trust |
 |---|---|---|
-| Mortgage rate | Weekly Freddie Mac 30-yr average | FRED (official), or your manual rate in Preferencias |
+| Mortgage rate | Weekly Freddie Mac 30-yr average (shown per scenario as "Tasa de interés") | FRED (official), or your manual rate in Preferencias |
 | FHA rate | Freddie Mac rate − 0.25% | **Assumption.** FHA usually prices a bit lower; get a quote |
 | FHA upfront MIP | 1.75%, financed | HUD standard |
 | FHA annual MIP | 0.75% (loans > $726,200) / 0.55% (smaller) | HUD ML 2023-05; corrected 2026-11-20 |
@@ -93,6 +93,18 @@ against hand calculations ($100,000 at 6% = $599.55/month).
   - Rush-hour traffic, transfer waits and service changes vary.
   - Town times are editable in Preferencias if your own experience differs.
 
+## Driving time to 576 Bergen Blvd, Ridgefield
+
+- **Source:** the road route from each home to the address, using the free OpenStreetMap routing
+  service (OSRM). The destination's coordinates come from the official US Census geocoder.
+- **Why it's reasonable:** it uses real road distances and speed limits, not straight lines.
+- **Limits:** it is **free-flow time, with no traffic**. Rush hour will be longer, sometimes much
+  longer on Route 46 or Route 1&9.
+- **How it's scored:** the commute category averages two sub-scores equally. 7 WTC by transit
+  scores 10 at 40 min and 0 at 90 min. Ridgefield by car scores 10 at 5 min and 0 at 35 min.
+  The Ridgefield scale is an **assumption** that leaves room for traffic. If either time is
+  missing, that half counts as 0.
+
 ## Features from photos (AI)
 
 - **Method:** the photo model labels all photos by room, then closely inspects at most 10
@@ -110,6 +122,12 @@ against hand calculations ($100,000 at 6% = $599.55/month).
   - The same model can also answer differently on a second run, which is why each home is analyzed
     once and the result is saved.
   - Always verify photo-based findings in person.
+
+## Discarded homes
+
+"Descartar" hides a home from every list right away, and the top 5 refills with the next
+best home. It is also excluded from ranking on later searches. Use "Ver descartadas" at the
+bottom of the page to restore one.
 
 ## Score (0–100)
 
@@ -149,6 +167,6 @@ against hand calculations ($100,000 at 6% = $599.55/month).
 
 ## How it's tested
 
-- 157 automated tests cover every rule above.
+- 162 automated tests cover every rule above.
 - Tests block all real network calls.
 - Real-data checks were run and the bugs they found were fixed. See the git history for details.

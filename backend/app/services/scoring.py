@@ -116,16 +116,33 @@ def score_property(prop: Property, prefs: SearchPreferences, rate: MortgageRate)
         cats.append(CategoryScore(name="affordability", weight=w.affordability, score=round(s, 1),
                                   reason=f"${prop.price:,} vs. máximo de ${prefs.max_price:,} (define una meta mensual para una mejor medida)"))
 
-    # Location & commute: 40 min -> 10, 90 min -> 0.
+    # Location & commute: average of each destination's sub-score (decided 2026-11-20: equal weight).
+    # Transit to 7 WTC: 40 min -> 10, 90 min -> 0. Driving (free-flow): 5 min -> 10, 35 min -> 0.
+    # A destination that couldn't be estimated counts as 0 (never rewarded).
+    parts: list[tuple[float | None, str]] = []
     c = prop.commute
     if c and c.total_minutes is not None:
-        s = _lerp_score(c.total_minutes, best=40, worst=90)
-        cats.append(CategoryScore(name="location_commute", weight=w.location_commute, score=round(s, 1),
-                                  reason=f"~{c.total_minutes} min a {c.destination} ({c.walk_minutes} min caminando a {c.nearest_stop}, luego {c.route})"))
+        parts.append((_lerp_score(c.total_minutes, best=40, worst=90),
+                      f"~{c.total_minutes} min en transporte a {c.destination} ({c.walk_minutes} min caminando a {c.nearest_stop}, luego {c.route})"))
     else:
+        parts.append((None, "transporte a 7 WTC no estimado"))
+    drive_dests = [d for d in prefs.commute_destinations if d.mode.value == "drive"]
+    drives = {d.address: d for d in prop.drives}
+    for dest in drive_dests:
+        d = drives.get(dest.address)
+        if d and d.minutes is not None:
+            parts.append((_lerp_score(d.minutes, best=5, worst=35),
+                          f"~{d.minutes} min en auto a {d.destination} (sin tráfico)"))
+        else:
+            parts.append((None, f"tiempo en auto a {dest.label} no estimado"))
+    if all(sc is None for sc, _ in parts):
         cats.append(CategoryScore(name="location_commute", weight=w.location_commute, score=None,
                                   reason="Trayecto no estimado (sin coordenadas o sin parada cercana)"))
         missing.append("commute")
+    else:
+        s = sum((sc or 0) for sc, _ in parts) / len(parts)
+        cats.append(CategoryScore(name="location_commute", weight=w.location_commute, score=round(s, 1),
+                                  reason="; ".join(r for _, r in parts)))
 
     # Condition from the listing text; photos only when the text doesn't say.
     cond = prop.llm_analysis.condition if prop.llm_analysis else Condition.UNKNOWN

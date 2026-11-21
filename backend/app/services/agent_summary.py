@@ -22,7 +22,7 @@ from app.services.scoring import CATEGORY_ES, CONDITION_ES, SCENARIO_ES
 
 log = logging.getLogger(__name__)
 
-PROMPT_VERSION = "summary-v2"  # v2: Spanish feature names in facts
+PROMPT_VERSION = "summary-v3"  # v3: driving times; interest rate per scenario
 
 FEATURE_ES = {
     "garage": "garaje", "driveway": "entrada para autos", "laundry": "lavandería",
@@ -123,6 +123,8 @@ def build_facts(ev: EvaluatedProperty, prefs: SearchPreferences) -> dict[str, An
     if p.commute and p.commute.total_minutes is not None:
         facts["trayecto"] = {"total": f"{p.commute.total_minutes} min", "caminata": f"{p.commute.walk_minutes} min",
                              "parada": p.commute.nearest_stop, "ruta": p.commute.route, "destino": p.commute.destination}
+    facts["en_auto"] = [{"destino": d.destination, "minutos_sin_trafico": f"{d.minutes} min"}
+                        for d in p.drives if d.minutes is not None]
     return facts
 
 

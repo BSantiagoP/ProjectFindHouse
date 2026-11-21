@@ -57,3 +57,15 @@ def test_fha_high_balance_mip_is_075_percent():
     # $850,000 price, 3.5% down -> base loan $820,250 > $726,200 -> 0.75%/yr
     r = evaluate_all(CostInputs(price=850_000, annual_rate=0.07, annual_maintenance_pct=0))[S.FHA_3_5]
     assert r.monthly_mortgage_insurance == pytest.approx(820_250 * 0.0075 / 12, abs=0.01)  # $512.66
+
+
+def test_old_saved_analysis_without_rate_still_loads():
+    from app.services.scoring import Analysis
+
+    old = {"scenario": "fha_3_5", "down_payment": 1, "loan_amount": 1, "monthly_principal_interest": 1,
+           "monthly_mortgage_insurance": 1, "monthly_tax": 1, "monthly_insurance": 1, "monthly_hoa": 0,
+           "monthly_maintenance": 1, "monthly_housing_cost": 1, "net_rental_contribution": 0,
+           "effective_owner_cost": 1, "rent_offset_pct": None}
+    a = Analysis.model_validate({"score": 1, "confidence": 1, "categories": [], "finance": {"fha_3_5": old},
+                                 "primary_scenario": "fha_3_5", "rate": 0.07, "rate_source": "t", "missing": [], "explanation": []})
+    assert a.finance["fha_3_5"].annual_rate is None

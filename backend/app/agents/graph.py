@@ -22,6 +22,7 @@ from app.services.description_analysis import PROMPT_VERSION, StructuredLLM, ana
 from app.services.discovery import DiscoveryRun, EvaluatedProperty
 from app.services.photo_analysis import VisionLLM, analyze_photos
 from app.services.agent_summary import SummaryLLM, summarize
+from app.services.driving import Router, estimate_drives
 from app.services.filtering import FilterStatus, apply_hard_filters
 from app.services.rates import MortgageRate
 from app.services.scoring import score_property
@@ -39,6 +40,8 @@ class AnalysisDeps:
     today: date = field(default_factory=date.today)
     vision: VisionLLM | None = None
     summarizer: SummaryLLM | None = None
+    router: Router | None = None
+    rejected_keys: set[tuple[str, str]] = field(default_factory=set)  # discarded in the dashboard
 
 
 class State(TypedDict):
@@ -105,6 +108,7 @@ def build_graph(deps: AnalysisDeps):
                 p = p.model_copy(update={"commute": estimate_commute(p, prefs, deps.stops)})
                 if p.commute and (p.commute.nearest_stop or "").startswith("lookup failed"):
                     errors.append(f"Commute not estimated for {p.address.raw}: {p.commute.nearest_stop}")
+            p = p.model_copy(update={"drives": estimate_drives(p, prefs, deps.router)})
             # Rent costs money: only for eligible multifamily, and only if not already estimated.
             needs_rent = (
                 ev.filter.status is FilterStatus.ELIGIBLE
@@ -145,7 +149,8 @@ def build_graph(deps: AnalysisDeps):
 
     def select_top(state: State) -> dict[str, Any]:
         ranked = sorted(
-            (ev for ev in state["candidates"] if ev.analysis and ev.filter.status is FilterStatus.ELIGIBLE),
+            (ev for ev in state["candidates"]
+             if ev.analysis and ev.filter.status is FilterStatus.ELIGIBLE and ev.property.key not in deps.rejected_keys),
             key=lambda ev: (ev.analysis.score, ev.analysis.confidence),
             reverse=True,
         )

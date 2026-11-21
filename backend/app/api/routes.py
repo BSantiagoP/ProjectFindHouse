@@ -16,6 +16,7 @@ from app.services.commute import GtfsStopFinder
 from app.services.description_analysis import OpenAIStructuredLLM
 from app.services.photo_analysis import OpenAIVisionLLM
 from app.services.agent_summary import OpenAISummaryLLM
+from app.services.driving import OsrmRouter
 from app.services.discovery import run_discovery
 from app.services.rates import current_rate
 from app.services.filtering import FilterStatus
@@ -55,6 +56,8 @@ def build_analysis_deps(settings: Settings, repo: Repository, prefs: SearchPrefe
     vision = OpenAIVisionLLM(settings.openai_api_key, settings.openai_vision_model) if settings.openai_api_key and settings.photo_analysis_enabled else None
     return AnalysisDeps(
         llm=llm, llm_model=settings.openai_model, rentcast=rentcast, vision=vision,
+        router=OsrmRouter(),
+        rejected_keys=repo.rejected_listing_keys(),
         summarizer=OpenAISummaryLLM(settings.openai_api_key, settings.openai_model) if settings.openai_api_key else None,
         stops=GtfsStopFinder(), rate=current_rate(prefs.rate_override),
     )

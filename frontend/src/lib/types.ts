@@ -65,6 +65,7 @@ export interface Property {
     rental_units: { label: string; bedrooms: number | null; rent: number | null; range_low: number | null; range_high: number | null }[];
     monthly_rent_total: number | null;
   } | null;
+  drives: { destination: string; address: string; minutes: number | null; miles: number | null }[];
   agent_summary: {
     verdict: "recomendada" | "considerar" | "no_recomendada";
     headline: string;
@@ -86,6 +87,7 @@ export interface Property {
 
 export interface ScenarioResult {
   scenario: string;
+  annual_rate?: number | null;
   down_payment: number;
   loan_amount: number;
   monthly_principal_interest: number;

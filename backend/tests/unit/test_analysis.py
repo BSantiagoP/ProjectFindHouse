@@ -405,3 +405,54 @@ def test_property_rejected_by_outdated_analysis_gets_reanalyzed():
     run_analysis(run, prefs, AnalysisDeps(llm=llm, llm_model="m", rentcast=None, stops=FakeStops(), rate=RATE, today=TODAY))
     assert llm.calls == 1
     assert run.results[0].filter.status is FilterStatus.ELIGIBLE
+
+
+# ---- Ridgefield driving, rate per scenario, discarded homes (2026-11-20) -----------------
+
+class FakeRouter:
+    def __init__(self, minutes=3.2, miles=1.2):
+        self.calls, self.minutes, self.miles = 0, minutes, miles
+
+    def drive(self, lat, lon, dlat, dlon):
+        self.calls += 1
+        return self.minutes, self.miles
+
+
+def test_drive_time_to_ridgefield_computed_once():
+    from app.services.driving import estimate_drives
+
+    router = FakeRouter()
+    p = mf()
+    drives = estimate_drives(p, SearchPreferences(), router)
+    assert [(d.destination, d.minutes, d.miles) for d in drives] == [("576 Bergen Blvd", 3, 1.2)]
+    again = estimate_drives(p.model_copy(update={"drives": drives}), SearchPreferences(), router)
+    assert router.calls == 1 and again == drives
+
+
+def test_commute_score_averages_wtc_transit_and_ridgefield_drive():
+    from app.models.analysis import DriveEstimate
+
+    p = scored_property()  # ~52 min to WTC -> transit sub-score 7.6
+    near = p.model_copy(update={"drives": [DriveEstimate(destination="576 Bergen Blvd", address="576 Bergen Blvd, Ridgefield, NJ 07657", minutes=5, miles=1.0)]})
+    cat = lambda prop: next(c for c in score_property(prop, SearchPreferences(), RATE).categories if c.name == "location_commute")
+    assert cat(near).score == pytest.approx((7.6 + 10) / 2, abs=0.05)
+    assert cat(p).score == pytest.approx(7.6 / 2, abs=0.05)  # unknown drive counts as 0
+    assert "en auto a 576 Bergen Blvd" in cat(near).reason
+
+
+def test_scenarios_report_interest_rate_used():
+    a = score_property(scored_property(), SearchPreferences(), RATE)
+    assert a.finance["conventional_20"].annual_rate == pytest.approx(0.06)
+    assert a.finance["fha_3_5"].annual_rate == pytest.approx(0.0575)  # FHA adjustment -0.25%
+
+
+def test_discarded_home_not_ranked_and_next_one_moves_up():
+    good = mf(external_id="a", features=PropertyFeatures(garage=present(), laundry=present()))
+    cheaper = mf(external_id="b", price=600_000, features=PropertyFeatures(garage=present(), laundry=present()))
+    prefs = SearchPreferences()
+    run = DiscoveryRun(id="r", started_at=None, status="succeeded",
+                       results=[EvaluatedProperty(p, apply_hard_filters(p, prefs, TODAY)) for p in (good, cheaper)])
+    deps = AnalysisDeps(llm=FakeLLM(), llm_model="m", rentcast=None, stops=FakeStops(), rate=RATE, today=TODAY,
+                        rejected_keys={("test", "b")})
+    run = run_analysis(run, prefs, deps)
+    assert {ev.property.external_id: ev.rank for ev in run.results} == {"a": 1, "b": None}

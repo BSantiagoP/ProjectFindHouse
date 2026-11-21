@@ -97,3 +97,6 @@ class MemoryRepository:
 
     def rejected_property_ids(self) -> set[str]:
         return set(self.rejected)
+
+    def rejected_listing_keys(self) -> set[tuple[str, str]]:
+        return {k for k, pid in self.listings.items() if pid in self.rejected}

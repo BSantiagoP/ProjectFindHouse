@@ -54,6 +54,7 @@ class ScenarioResult:
     net_rental_contribution: float
     effective_owner_cost: float
     rent_offset_pct: float | None
+    annual_rate: float | None = None  # interest rate used; optional so runs saved before it still load
 
 
 def monthly_payment(principal: float, annual_rate: float, term_years: int) -> float:
@@ -98,6 +99,7 @@ def evaluate_scenario(inputs: CostInputs, scenario: LoanScenario) -> ScenarioRes
     net_rent = net_rental_contribution(inputs)
     return ScenarioResult(
         scenario=scenario.name,
+        annual_rate=inputs.annual_rate,
         down_payment=round(down, 2),
         loan_amount=round(loan, 2),
         monthly_principal_interest=round(pi, 2),

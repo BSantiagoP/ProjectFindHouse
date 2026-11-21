@@ -89,6 +89,15 @@ class RentEstimate(BaseModel):
     estimated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class DriveEstimate(BaseModel):
+    destination: str  # label, e.g. "576 Bergen Blvd"
+    address: str
+    minutes: int | None  # free-flow driving time (no live traffic)
+    miles: float | None
+    source: str = "osrm"
+    error: str | None = None
+
+
 class CommuteEstimate(BaseModel):
     destination: str
     town_minutes: int  # stop/station to destination, from the configured town table

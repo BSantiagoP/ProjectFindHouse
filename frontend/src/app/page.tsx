@@ -8,10 +8,14 @@ export default async function Home() {
   const [latest, feedback] = await Promise.all([getLatestRun(), getFeedbackMap()]);
   if (!latest) return <p className="text-stone-600">Aún no hay búsquedas. La primera se ejecuta el próximo día programado.</p>;
   const { run, results } = latest;
-  const ranked = results.filter((r) => r.rank).sort((a, b) => a.rank! - b.rank!);
-  const otherEligible = results
-    .filter((r) => r.filter_status === "eligible" && !r.rank)
-    .sort((a, b) => (b.analysis?.score ?? 0) - (a.analysis?.score ?? 0));
+  const isDiscarded = (r: (typeof results)[number]) => feedback[r.property_id]?.rejected === true;
+  // Discarded homes leave the lists right away; the top 5 refills with the next best eligible home.
+  const eligible = results
+    .filter((r) => r.filter_status === "eligible" && r.analysis && !isDiscarded(r))
+    .sort((a, b) => b.analysis!.score - a.analysis!.score || (a.rank ?? 99) - (b.rank ?? 99));
+  const ranked = eligible.slice(0, 5).map((r, i) => ({ ...r, rank: i + 1 }));
+  const otherEligible = eligible.slice(5).map((r) => ({ ...r, rank: null }));
+  const discarded = results.filter(isDiscarded);
 
   return (
     <div className="space-y-8">
@@ -36,6 +40,15 @@ export default async function Home() {
             {otherEligible.map((r) => <PropertyCard key={r.property_id} r={r} feedback={feedback[r.property_id]} />)}
           </div>
         </section>
+      )}
+      {discarded.length > 0 && (
+        <details className="rounded-lg border border-stone-200 bg-white p-3">
+          <summary className="cursor-pointer text-sm text-stone-600">Ver descartadas ({discarded.length})</summary>
+          <p className="mt-2 text-xs text-stone-500">Toca &quot;Descartada&quot; para restaurar una casa.</p>
+          <div className="mt-3 space-y-4">
+            {discarded.map((r) => <PropertyCard key={r.property_id} r={{ ...r, rank: null }} feedback={feedback[r.property_id]} />)}
+          </div>
+        </details>
       )}
     </div>
   );

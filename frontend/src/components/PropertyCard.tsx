@@ -40,6 +40,18 @@ export function PropertyCard({ r, feedback }: { r: RunResult; feedback?: Feedbac
                 <dd>{usd(rentKnown ? primary.effective_owner_cost : primary.monthly_housing_cost)}</dd>
               </>
             )}
+            {primary && (
+              <>
+                <dt className="text-stone-500">Tasa ({a!.primary_scenario === "fha_3_5" ? "FHA" : "conv."})</dt>
+                <dd>{((primary.annual_rate ?? a!.rate) * 100).toFixed(2)}%</dd>
+              </>
+            )}
+            {p.drives?.filter((d) => d.minutes != null).map((d) => (
+              <span key={d.address} className="contents">
+                <dt className="text-stone-500">En auto a {d.destination}</dt>
+                <dd>~{d.minutes} min</dd>
+              </span>
+            ))}
             {p.commute?.total_minutes != null && (
               <>
                 <dt className="text-stone-500">Trayecto a WTC</dt>

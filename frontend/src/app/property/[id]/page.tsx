@@ -55,6 +55,12 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
         </div>
       </header>
 
+      {fb?.rejected && (
+        <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900">
+          Descartaste esta casa: no aparece en las listas. Toca &quot;Descartada&quot; para restaurarla.
+        </div>
+      )}
+
       {r.filter_status !== "eligible" && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
           {r.filter_status === "rejected" ? "Descartada: " + r.rejections.join("; ") : "Por verificar: " + r.unverified.join(", ")}
@@ -109,6 +115,12 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
+                <tr>
+                  <td className="py-1.5 text-stone-600">Tasa de interés</td>
+                  {scenarios.map((s) => (
+                    <td key={s.scenario} className="py-1.5">{((s.annual_rate ?? a!.rate) * 100).toFixed(2)}%</td>
+                  ))}
+                </tr>
                 {([
                   ["Enganche", "down_payment"],
                   ["Capital e intereses", "monthly_principal_interest"],
@@ -163,6 +175,12 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
               <li className="text-stone-600">{p.commute.walk_minutes} min caminando a {p.commute.nearest_stop}</li>
               <li className="text-stone-600">luego {p.commute.route} (~{p.commute.town_minutes} min)</li>
               <li className="pt-1 text-xs text-stone-500">Estimación por pueblo + paradas de NJ Transit; no es una ruta puerta a puerta.</li>
+              {p.drives?.map((d) => (
+                <li key={d.address} className="pt-2">
+                  <b>{d.minutes != null ? `~${d.minutes} min` : "No estimado"}</b> en auto a {d.address}
+                  {d.miles != null && <span className="text-stone-500"> ({d.miles} mi, sin tráfico)</span>}
+                </li>
+              ))}
             </ul>
           ) : (
             <p className="mt-2 text-sm text-stone-600">No estimado</p>

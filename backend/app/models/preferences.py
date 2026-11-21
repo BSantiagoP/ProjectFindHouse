@@ -12,6 +12,8 @@ class CommuteDestination(BaseModel):
     label: str
     address: str
     mode: CommuteMode = CommuteMode.TRANSIT
+    lat: float | None = None
+    lon: float | None = None
 
 
 class FinanceScenarioName(StrEnum):
@@ -69,7 +71,15 @@ class SearchPreferences(BaseModel):
             CommuteDestination(
                 label="7 WTC",
                 address="7 World Trade Center, 250 Greenwich St, New York, NY 10007",
-            )
+            ),
+            # Added 2026-11-20; coordinates from the US Census geocoder.
+            CommuteDestination(
+                label="576 Bergen Blvd",
+                address="576 Bergen Blvd, Ridgefield, NJ 07657",
+                mode=CommuteMode.DRIVE,
+                lat=40.827193095372,
+                lon=-73.995480873132,
+            ),
         ]
     )
     primary_scenario: FinanceScenarioName = FinanceScenarioName.FHA_3_5

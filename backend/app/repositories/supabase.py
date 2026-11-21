@@ -264,3 +264,11 @@ class SupabaseRepository:
     def rejected_property_ids(self) -> set[str]:
         rows = self._req("GET", "property_feedback", params={"rejected": "eq.true", "select": "property_id"})
         return {r["property_id"] for r in rows}
+
+    def rejected_listing_keys(self) -> set[tuple[str, str]]:
+        ids = list(self.rejected_property_ids())
+        keys: set[tuple[str, str]] = set()
+        for chunk in _chunks(ids):
+            for r in self._req("GET", "provider_listings", params={"property_id": _in(chunk), "select": "provider,external_id"}):
+                keys.add((r["provider"], r["external_id"]))
+        return keys
